@@ -9,13 +9,13 @@ const store = {
 };
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), ms); }
 function fmtLen(ft) {
-  if (!isFinite(ft)) return '—';
+  if (!isFinite(ft)) return '';
   const neg = ft < 0; ft = Math.abs(ft);
   const totalIn = Math.round(ft * 12 * 16) / 16; let f = Math.floor(totalIn / 12), inch = totalIn - f * 12;
   let whole = Math.floor(inch), frac = Math.round((inch - whole) * 16), fr = '';
   if (frac === 16) { whole++; frac = 0; } if (whole === 12) { f++; whole = 0; }
   if (frac) { let d = 16; while (frac % 2 === 0) { frac /= 2; d /= 2; } fr = ' ' + frac + '/' + d; }
-  return (neg ? '-' : '') + f + "'-" + whole + fr + '"';
+  return (neg ? '-' : '') + f + "' " + whole + fr + '"';
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -211,7 +211,7 @@ async function openFile(file) {
   if (!file) return;
   const isUrl = typeof file === 'string';
   $('welcome').classList.add('hidden'); $('loader').classList.remove('hidden');
-  $('loadDetail').textContent = isUrl ? file : file.name + ' — ' + (file.size / 1048576).toFixed(0) + ' MB';
+  $('loadDetail').textContent = isUrl ? file : file.name + ', ' + (file.size / 1048576).toFixed(0) + ' MB';
   clearModel(); M = null;
   try {
     const budget = +store.get('budget', isTouch ? 2500000 : 5000000);
@@ -220,9 +220,9 @@ async function openFile(file) {
     initState(info.fragments);
     hiddenFrags = new Set(info.hidden); if (info.hidden.length) setFlag(info.hidden, 1, true);
     $('fileLabel').textContent = info.name + ' · ' + info.fragments.toLocaleString() + ' objects';
-    document.title = info.name + ' — Adman Model Viewer';
+    document.title = info.name + ' | AdmanWorks';
     $('loader').classList.add('hidden');
-    if (info.treeError) { console.warn('tree:', info.treeError); toast('Opened with geometry only — this model tree uses a layout the viewer does not read yet, so the Selection Tree and Properties are limited.', 9000); }
+    if (info.treeError) { console.warn('tree:', info.treeError); toast('This model opened with geometry only. Its model tree uses a layout AdmanWorks can not read yet, so the Selection Tree and Properties are limited.', 9000); }
     ['tools', 'status', 'cube'].forEach(id => $(id).classList.toggle('hidden', id === 'status' ? !store.get('stats', false) : false));
     setupTree(); renderViews(); selectPaths([]);
     const v0 = firstView(info.views, /^(3d main|home|3d view|3d)/i) || firstView(info.views, /3d/i);

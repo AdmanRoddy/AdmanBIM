@@ -18,7 +18,8 @@ button{cursor:pointer}
 /* ---------- top bar ---------- */
 .top{position:fixed;left:0;right:0;top:0;z-index:30;background:var(--navy);color:#fff;border-bottom:3px solid var(--red);padding-top:env(safe-area-inset-top)}
 .top-in{display:flex;align-items:center;gap:12px;padding:8px 14px;height:var(--top-h)}
-.logo .plate{background:#fff;color:var(--navy);border-radius:4px;padding:5px 8px;font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:1.5px;border-left:4px solid var(--red)}
+.logo .plate{background:#fff;border-radius:4px;padding:4px 6px;display:flex}
+.logo img{height:44px;width:auto;display:block}
 .title{display:flex;flex-direction:column;line-height:1;min-width:0;flex:1}
 .title h1{margin:0;font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:.3px;white-space:nowrap}
 .title small{font-family:var(--mono);font-size:10.5px;color:#9fb3c8;margin-top:4px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -26,7 +27,7 @@ button{cursor:pointer}
 .tb{display:flex;align-items:center;gap:6px;background:var(--navy-2);border:1px solid #27476a;color:#fff;border-radius:6px;padding:8px 12px;font-weight:600;font-size:14px}
 .tb.primary{background:var(--red);border-color:var(--red)}
 .tb svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@media (max-width:640px){.tb span{display:none}.title small{display:none}.logo .plate{font-size:15px}}
+@media (max-width:640px){.tb span{display:none}.title small{display:none}.logo img{height:30px}}
 
 /* ---------- stage ---------- */
 #stage{position:fixed;left:0;right:0;top:calc(var(--top-h) + 3px + env(safe-area-inset-top));bottom:0;background:linear-gradient(#3d5268,#9fb0c0)}

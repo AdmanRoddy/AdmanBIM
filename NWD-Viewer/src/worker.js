@@ -553,7 +553,7 @@ function fmtLen(ft) {
   var totalIn = Math.round(ft * 12 * 16) / 16, f = Math.floor(totalIn / 12), inch = totalIn - f * 12;
   var whole = Math.floor(inch), frac = Math.round((inch - whole) * 16), fr = '';
   if (frac) { var d = 16; while (frac % 2 === 0) { frac /= 2; d /= 2; } fr = ' ' + frac + '/' + d; }
-  return (neg ? '-' : '') + f + "'-" + whole + fr + '"';
+  return (neg ? '-' : '') + f + "' " + whole + fr + '"';
 }
 function fmtValue(type, v) {
   if (v === null || v === undefined) return '';

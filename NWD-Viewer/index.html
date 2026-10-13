@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b2339">
-<title>Adman Model Viewer</title>
+<title>AdmanWorks</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,8 @@ button{cursor:pointer}
 /* ---------- top bar ---------- */
 .top{position:fixed;left:0;right:0;top:0;z-index:30;background:var(--navy);color:#fff;border-bottom:3px solid var(--red);padding-top:env(safe-area-inset-top)}
 .top-in{display:flex;align-items:center;gap:12px;padding:8px 14px;height:var(--top-h)}
-.logo .plate{background:#fff;color:var(--navy);border-radius:4px;padding:5px 8px;font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:1.5px;border-left:4px solid var(--red)}
+.logo .plate{background:#fff;border-radius:4px;padding:4px 6px;display:flex}
+.logo img{height:44px;width:auto;display:block}
 .title{display:flex;flex-direction:column;line-height:1;min-width:0;flex:1}
 .title h1{margin:0;font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:.3px;white-space:nowrap}
 .title small{font-family:var(--mono);font-size:10.5px;color:#9fb3c8;margin-top:4px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -42,7 +43,7 @@ button{cursor:pointer}
 .tb{display:flex;align-items:center;gap:6px;background:var(--navy-2);border:1px solid #27476a;color:#fff;border-radius:6px;padding:8px 12px;font-weight:600;font-size:14px}
 .tb.primary{background:var(--red);border-color:var(--red)}
 .tb svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-@media (max-width:640px){.tb span{display:none}.title small{display:none}.logo .plate{font-size:15px}}
+@media (max-width:640px){.tb span{display:none}.title small{display:none}.logo img{height:30px}}
 
 /* ---------- stage ---------- */
 #stage{position:fixed;left:0;right:0;top:calc(var(--top-h) + 3px + env(safe-area-inset-top));bottom:0;background:linear-gradient(#3d5268,#9fb0c0)}
@@ -156,8 +157,8 @@ input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
 <body>
 <header class="top">
   <div class="top-in">
-    <div class="logo"><div class="plate">ADMAN</div></div>
-    <div class="title"><h1>Model Viewer</h1><small id="fileLabel">NAVISWORKS NWD / NWC</small></div>
+    <div class="logo"><div class="plate"><img src="adman-prefab-logo.webp" alt="Adman Electric Prefabrication"></div></div>
+    <div class="title"><h1>AdmanWorks</h1><small id="fileLabel">NAVISWORKS MODELS</small></div>
     <div class="top-actions">
       <button class="tb" id="btnPanelLeft" title="Selection tree, viewpoints, find"><svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg><span>Tree</span></button>
       <button class="tb" id="btnPanelRight" title="Properties"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg><span>Properties</span></button>
@@ -173,9 +174,9 @@ input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
   <div id="welcome" class="welcome">
     <div class="card">
       <div class="sec-h"><span class="n">01</span> OPEN A MODEL</div>
-      <p>Open a Navisworks <b>.nwd</b> or <b>.nwc</b> file from Files, iCloud Drive, OneDrive or a shared drive. The file is read on this device only — nothing is uploaded.</p>
+      <p>Open a Navisworks <b>.nwd</b> or <b>.nwc</b> file from Files, iCloud Drive, OneDrive or a shared drive. The file is read right here on this device and nothing is uploaded.</p>
       <button class="big" id="btnOpen2">Choose model file…</button>
-      <p class="muted small">Large models (1 GB+) open in a few seconds; detail streams in as you move around, the same way Navisworks does.</p>
+      <p class="muted small">Large models over 1 GB open in seconds, and detail fills in as you move around, just like Navisworks.</p>
       <div id="dropHint" class="muted small">On a computer you can also drag a file onto this window.</div>
     </div>
   </div>
@@ -285,10 +286,10 @@ input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
     <div class="sec-h"><span class="n">⚙</span> SETTINGS <button class="x" data-close="settings">×</button></div>
     <label>Detail / performance
       <select id="setBudget">
-        <option value="1000000">Low — older iPads</option>
+        <option value="1000000">Low, for older iPads</option>
         <option value="2500000" selected>Medium</option>
         <option value="5000000">High</option>
-        <option value="10000000">Ultra — computers</option>
+        <option value="10000000">Ultra, for computers</option>
       </select>
     </label>
     <label>Selection resolution
@@ -305,7 +306,7 @@ input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
     </label>
     <label class="chk"><input type="checkbox" id="setLines" checked> Show lines (center lines, 2D)</label>
     <label class="chk"><input type="checkbox" id="setStats"> Show performance stats</label>
-    <div class="muted small" id="aboutText">Independent viewer — reads Navisworks files directly on this device.</div>
+    <div class="muted small" id="aboutText">AdmanWorks reads Navisworks files directly on this device.</div>
   </div>
 </div>
 
@@ -1573,7 +1574,7 @@ function fmtLen(ft) {
   var totalIn = Math.round(ft * 12 * 16) / 16, f = Math.floor(totalIn / 12), inch = totalIn - f * 12;
   var whole = Math.floor(inch), frac = Math.round((inch - whole) * 16), fr = '';
   if (frac) { var d = 16; while (frac % 2 === 0) { frac /= 2; d /= 2; } fr = ' ' + frac + '/' + d; }
-  return (neg ? '-' : '') + f + "'-" + whole + fr + '"';
+  return (neg ? '-' : '') + f + "' " + whole + fr + '"';
 }
 function fmtValue(type, v) {
   if (v === null || v === undefined) return '';
@@ -1650,13 +1651,13 @@ const store = {
 };
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), ms); }
 function fmtLen(ft) {
-  if (!isFinite(ft)) return '—';
+  if (!isFinite(ft)) return '';
   const neg = ft < 0; ft = Math.abs(ft);
   const totalIn = Math.round(ft * 12 * 16) / 16; let f = Math.floor(totalIn / 12), inch = totalIn - f * 12;
   let whole = Math.floor(inch), frac = Math.round((inch - whole) * 16), fr = '';
   if (frac === 16) { whole++; frac = 0; } if (whole === 12) { f++; whole = 0; }
   if (frac) { let d = 16; while (frac % 2 === 0) { frac /= 2; d /= 2; } fr = ' ' + frac + '/' + d; }
-  return (neg ? '-' : '') + f + "'-" + whole + fr + '"';
+  return (neg ? '-' : '') + f + "' " + whole + fr + '"';
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -1852,7 +1853,7 @@ async function openFile(file) {
   if (!file) return;
   const isUrl = typeof file === 'string';
   $('welcome').classList.add('hidden'); $('loader').classList.remove('hidden');
-  $('loadDetail').textContent = isUrl ? file : file.name + ' — ' + (file.size / 1048576).toFixed(0) + ' MB';
+  $('loadDetail').textContent = isUrl ? file : file.name + ', ' + (file.size / 1048576).toFixed(0) + ' MB';
   clearModel(); M = null;
   try {
     const budget = +store.get('budget', isTouch ? 2500000 : 5000000);
@@ -1861,9 +1862,9 @@ async function openFile(file) {
     initState(info.fragments);
     hiddenFrags = new Set(info.hidden); if (info.hidden.length) setFlag(info.hidden, 1, true);
     $('fileLabel').textContent = info.name + ' · ' + info.fragments.toLocaleString() + ' objects';
-    document.title = info.name + ' — Adman Model Viewer';
+    document.title = info.name + ' | AdmanWorks';
     $('loader').classList.add('hidden');
-    if (info.treeError) { console.warn('tree:', info.treeError); toast('Opened with geometry only — this model tree uses a layout the viewer does not read yet, so the Selection Tree and Properties are limited.', 9000); }
+    if (info.treeError) { console.warn('tree:', info.treeError); toast('This model opened with geometry only. Its model tree uses a layout AdmanWorks can not read yet, so the Selection Tree and Properties are limited.', 9000); }
     ['tools', 'status', 'cube'].forEach(id => $(id).classList.toggle('hidden', id === 'status' ? !store.get('stats', false) : false));
     setupTree(); renderViews(); selectPaths([]);
     const v0 = firstView(info.views, /^(3d main|home|3d view|3d)/i) || firstView(info.views, /3d/i);

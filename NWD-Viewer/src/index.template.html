@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b2339">
-<title>Adman Model Viewer</title>
+<title>AdmanWorks</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,8 +21,8 @@
 <body>
 <header class="top">
   <div class="top-in">
-    <div class="logo"><div class="plate">ADMAN</div></div>
-    <div class="title"><h1>Model Viewer</h1><small id="fileLabel">NAVISWORKS NWD / NWC</small></div>
+    <div class="logo"><div class="plate"><img src="adman-prefab-logo.webp" alt="Adman Electric Prefabrication"></div></div>
+    <div class="title"><h1>AdmanWorks</h1><small id="fileLabel">NAVISWORKS MODELS</small></div>
     <div class="top-actions">
       <button class="tb" id="btnPanelLeft" title="Selection tree, viewpoints, find"><svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg><span>Tree</span></button>
       <button class="tb" id="btnPanelRight" title="Properties"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg><span>Properties</span></button>
@@ -38,9 +38,9 @@
   <div id="welcome" class="welcome">
     <div class="card">
       <div class="sec-h"><span class="n">01</span> OPEN A MODEL</div>
-      <p>Open a Navisworks <b>.nwd</b> or <b>.nwc</b> file from Files, iCloud Drive, OneDrive or a shared drive. The file is read on this device only — nothing is uploaded.</p>
+      <p>Open a Navisworks <b>.nwd</b> or <b>.nwc</b> file from Files, iCloud Drive, OneDrive or a shared drive. The file is read right here on this device and nothing is uploaded.</p>
       <button class="big" id="btnOpen2">Choose model file…</button>
-      <p class="muted small">Large models (1 GB+) open in a few seconds; detail streams in as you move around, the same way Navisworks does.</p>
+      <p class="muted small">Large models over 1 GB open in seconds, and detail fills in as you move around, just like Navisworks.</p>
       <div id="dropHint" class="muted small">On a computer you can also drag a file onto this window.</div>
     </div>
   </div>
@@ -150,10 +150,10 @@
     <div class="sec-h"><span class="n">⚙</span> SETTINGS <button class="x" data-close="settings">×</button></div>
     <label>Detail / performance
       <select id="setBudget">
-        <option value="1000000">Low — older iPads</option>
+        <option value="1000000">Low, for older iPads</option>
         <option value="2500000" selected>Medium</option>
         <option value="5000000">High</option>
-        <option value="10000000">Ultra — computers</option>
+        <option value="10000000">Ultra, for computers</option>
       </select>
     </label>
     <label>Selection resolution
@@ -170,7 +170,7 @@
     </label>
     <label class="chk"><input type="checkbox" id="setLines" checked> Show lines (center lines, 2D)</label>
     <label class="chk"><input type="checkbox" id="setStats"> Show performance stats</label>
-    <div class="muted small" id="aboutText">Independent viewer — reads Navisworks files directly on this device.</div>
+    <div class="muted small" id="aboutText">AdmanWorks reads Navisworks files directly on this device.</div>
   </div>
 </div>
 

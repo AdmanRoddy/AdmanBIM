@@ -1,6 +1,6 @@
 {
-  "name": "Adman Model Viewer",
-  "short_name": "Model Viewer",
+  "name": "AdmanWorks",
+  "short_name": "AdmanWorks",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
