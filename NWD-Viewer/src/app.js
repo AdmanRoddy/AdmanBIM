@@ -32,7 +32,7 @@ worker.onmessage = e => {
     case 'progress': $('loadStage').textContent = m.stage; $('loadBar').style.width = Math.round(m.frac * 100) + '%'; break;
     case 'cell': addCell(m); break;
     case 'drop': dropCell(m.cell); break;
-    case 'loading': loadingCells = m.pending; updateStatus(); $('busy').classList.toggle('hidden', !m.pending); break;
+    case 'loading': loadingCells = m.pending; updateStatus(); if (m.limited !== undefined) detailLimited(m.limited); $('busy').classList.toggle('hidden', !m.pending); break;
     case 'error': console.error(m.message); toast('Problem: ' + String(m.message).split('\n')[0], 5000); break;
   }
 };
@@ -214,7 +214,7 @@ async function openFile(file) {
   $('loadDetail').textContent = isUrl ? file : file.name + ', ' + (file.size / 1048576).toFixed(0) + ' MB';
   clearModel(); M = null;
   try {
-    const budget = +store.get('budget', isTouch ? 2500000 : 5000000);
+    const budget = +store.get('detail', isTouch ? 5000000 : 8000000);
     const info = await call('open', { file: isUrl ? null : file, url: isUrl ? new URL(file, location.href).href : null, budget, cacheLimit: isTouch ? 350 * 1048576 : 900 * 1048576 });
     M = info;
     initState(info.fragments);
@@ -807,21 +807,28 @@ $('findText').addEventListener('input', () => {
 $('findList').onclick = async e => { const it = e.target.closest('.it'); if (!it) return; await selectPaths([+it.dataset.p]); fitSelection(); };
 
 /* --------------------------------------------------- settings */
-$('setBudget').value = String(store.get('budget', isTouch ? 2500000 : 5000000));
+$('setBudget').value = String(store.get('detail', isTouch ? 5000000 : 8000000));
 $('setRes').value = resolution;
 $('setBg').value = store.get('bg', 'grad');
 $('setLines').checked = showLines;
 $('setStats').checked = store.get('stats', false);
-$('setBudget').onchange = e => { store.set('budget', +e.target.value); worker.postMessage({ type: 'settings', budget: +e.target.value }); sendView(); };
+$('setBudget').onchange = e => { store.set('detail', +e.target.value); limitNoticeShown = false; worker.postMessage({ type: 'settings', budget: +e.target.value }); sendView(); };
 $('setRes').onchange = e => { resolution = e.target.value; store.set('res', resolution); };
 $('setBg').onchange = e => { store.set('bg', e.target.value); setBackground(e.target.value); };
 $('setLines').onchange = e => { showLines = e.target.checked; store.set('lines', showLines); for (const c of cells.values()) for (const o of c.objs) if (o.userData.lines) o.visible = showLines; requestRender(); };
+$('detailNote').onclick = () => $('settings').classList.remove('hidden');
 $('setStats').onchange = e => { store.set('stats', e.target.checked); $('status').classList.toggle('hidden', !e.target.checked || !M); };
 $('settings').addEventListener('click', e => { if (e.target.id === 'settings') $('settings').classList.add('hidden'); });
 setBackground(store.get('bg', 'grad'));
 
 /* --------------------------------------------------- status */
 let fps = 0, frames = 0, fpsT = performance.now();
+let limitNoticeShown = false;
+// The loader keeps a set number of triangles on screen. When that hides visible items, say so once.
+function detailLimited(on) {
+  $('detailNote').classList.toggle('hidden', !on);
+  if (on && !limitNoticeShown) { limitNoticeShown = true; toast('Some small items are not drawn at this detail level. Raise Detail in Settings to show everything.', 7000); }
+}
 function updateStatus() {
   if ($('status').classList.contains('hidden')) return;
   $('status').textContent = `${(shownTris / 1e6).toFixed(2)}M tris · ${cells.size} cells${loadingCells ? ' · loading ' + loadingCells : ''} · ${fps} fps`;

@@ -67,14 +67,14 @@ Ctrl-click adds to the selection. Keys: **W A S D / Q E** walk, **H** hide, **I*
 
 ## Settings → Detail / performance
 
-The viewer keeps a set number of triangles on screen and loads the most visible objects first.
+The viewer keeps a set number of triangles on screen and loads the most visible objects first. If that hides anything in view, a red "Detail limit reached" tag appears; tap it to open Settings.
 
 | Setting | Triangles | Use on |
 |---|---|---|
-| Low | 1 M | older iPads |
-| Medium | 2.5 M | current iPads (default on iPad) |
-| High | 5 M | iPad Pro / M-series (default on computers) |
-| Ultra | 10 M | desktop computers |
+| Low | 2.5 M | older iPads |
+| Medium | 5 M | current iPads (default on iPad) |
+| High | 8 M | iPad Pro / M-series (default on computers) |
+| Ultra | 15 M | desktop computers |
 
 ## What it reads
 

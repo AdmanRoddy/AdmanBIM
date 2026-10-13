@@ -151,6 +151,8 @@ button{cursor:pointer}
 input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
 .it .sub{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+.detail-note{position:absolute;right:10px;bottom:calc(var(--tools-h) + 12px + env(safe-area-inset-bottom));z-index:10;background:rgba(189,29,35,.92);color:#fff;border:0;border-radius:14px;padding:6px 12px;font-size:12px;font-weight:600}
+
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js"}}</script>
 </head>
@@ -252,6 +254,7 @@ input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
 
   <div id="ctx" class="ctx hidden"></div>
   <div id="status" class="status mono hidden"></div>
+  <button id="detailNote" class="detail-note hidden">Detail limit reached</button>
   <div id="toast" class="toast hidden"></div>
 </main>
 
@@ -286,10 +289,10 @@ input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
     <div class="sec-h"><span class="n">⚙</span> SETTINGS <button class="x" data-close="settings">×</button></div>
     <label>Detail / performance
       <select id="setBudget">
-        <option value="1000000">Low, for older iPads</option>
-        <option value="2500000" selected>Medium</option>
-        <option value="5000000">High</option>
-        <option value="10000000">Ultra, for computers</option>
+        <option value="2500000">Low, for older iPads</option>
+        <option value="5000000" selected>Medium</option>
+        <option value="8000000">High</option>
+        <option value="15000000">Ultra, for computers</option>
       </select>
     </label>
     <label>Selection resolution
@@ -625,7 +628,8 @@ var NWD = (function () {
       }
       throw new Error('bad polyline table');
     }
-    function readStrips(q) {
+    function readStrips(q) { try { return readStripsAt(q); } catch (e) { return null; } }
+    function readStripsAt(q) {
       if (q + 12 > b.length) return null;
       var A = U(q), B = U(q + 4), C = U(q + 8);
       if (B < 1 || B > 32 || C < 1 || C > 5e6) return null;
@@ -733,7 +737,7 @@ var NWD = (function () {
     var kindOf = new Grow(Int32Array, 1 << 16), idxOf = new Grow(Int32Array, 1 << 16);  // by object id - 100
     var nextId = 100;
     var X = { t: new Grow(Float64Array, 1 << 16), m: new Grow(Float32Array, 1 << 17), n: 0 };
-    var G = { geom: new Grow(Int32Array), box: new Grow(Float32Array), n: 0 };
+    var G = { geom: new Grow(Int32Array), box: new Grow(Float32Array), off: new Grow(Float64Array), n: 0 };
     var mats = [], apps = [];
     var F = { geo: new Grow(Int32Array, 1 << 16), node: new Grow(Int32Array, 1 << 16), xf: new Grow(Int32Array, 1 << 16), app: new Grow(Int32Array, 1 << 16) };
     var K_FRAG = 1, K_XF = 2, K_APP = 3, K_MAT = 4, K_GEO = 5, K_OTHER = 6;
@@ -782,7 +786,7 @@ var NWD = (function () {
         }
         case 93: {
           var gi = G.n++; for (var k2 = 0; k2 < 6; k2++) G.box.push(r.f32());
-          r.f64(); r.f64(); r.f64(); r.f32(); r.u32(); G.geom.push(r.u32() - 1);
+          G.off.push(r.f64()); G.off.push(r.f64()); G.off.push(r.f64()); r.f32(); r.u32(); G.geom.push(r.u32() - 1);
           reg(id, K_GEO, gi); return { kind: K_GEO, index: gi };
         }
         case 185: {
@@ -803,7 +807,7 @@ var NWD = (function () {
       var a = F.app.a[i]; mat[i] = a >= 0 ? apps[a].mat : -1;
     }
     return { count: nF, geom: geom, node: node, xf: xfi, mat: mat, gbox: gbox,
-      xfT: X.t.done(), xfM: X.m.done(), boxes: G.box.done(), materials: mats };
+      xfT: X.t.done(), xfM: X.m.done(), boxes: G.box.done(), offsets: G.off.done(), materials: mats };
   }
 
   /* ------------------------------------------------------------------ logical hierarchy (model tree + properties) */
@@ -1072,7 +1076,7 @@ HANDLERS.open = async function (m) {
   progress('Reading file directory', 0);
   var f = await NWD.openFile(src);
   var st = { f: f, name: m.url ? src.name : m.file.name, size: src.size, chunkCache: new Map(), meshCache: new Map(), meshBytes: 0, recTris: new Map(),
-    budget: m.budget || 3000000, cacheLimit: m.cacheLimit || 400 * 1048576, cells: [], built: new Map() };
+    budget: m.budget || 5000000, cacheLimit: m.cacheLimit || 400 * 1048576, cells: [], built: new Map() };
 
   progress('Reading geometry index', 0.05);
   st.G = await NWD.openGeometry(f);
@@ -1156,7 +1160,11 @@ function quatMat(x, y, z, w) {
 }
 function fragXform(i) {
   var F = S.F, xi = F.xf[i];
-  if (xi < 0) return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], s: 1, t: [0, 0, 0] };
+  if (xi < 0) {
+    // no transform: the geometry link's offset places the object (used by some Revit exports for straight conduit/pipe)
+    var g = F.gbox[i], O = F.offsets;
+    return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], s: 1, t: g >= 0 ? [O[g * 3], O[g * 3 + 1], O[g * 3 + 2]] : [0, 0, 0] };
+  }
   return { m: Array.prototype.slice.call(F.xfM, xi * 9, xi * 9 + 9), s: 1, t: [F.xfT[xi * 3], F.xfT[xi * 3 + 1], F.xfT[xi * 3 + 2]] };
 }
 function buildFragmentBounds() {
@@ -1314,7 +1322,7 @@ function estTris(rec) {
 
 // Decide which fragments to show: in view, big enough on screen, best first, within the triangle budget.
 function chooseFragments(v) {
-  var planes = frustumPlanes(v.vp), cam = v.cam, k = v.projScale, minPx = v.minPx || 1.5;
+  var planes = frustumPlanes(v.vp), cam = v.cam, k = v.projScale, minPx = v.minPx || 1.5;  // items below minPx are loaded last
   var cand = [], score = [], ctr = S.ctr, rad = S.rad, geom = S.F.geom, box = S.box, clip = v.clip || [];
   for (var c = 0; c < S.cells.length; c++) {
     var cell = S.cells[c];
@@ -1325,7 +1333,7 @@ function chooseFragments(v) {
       var dx = ctr[f * 3] - cam[0], dy = ctr[f * 3 + 1] - cam[1], dz = ctr[f * 3 + 2] - cam[2];
       var d = Math.sqrt(dx * dx + dy * dy + dz * dz) - rad[f];
       var px = rad[f] * k / Math.max(d, 0.1);
-      if (px < minPx) continue;
+      if (px < 0.15) continue;   // truly invisible; smaller-than-minPx items still load after bigger ones if the budget allows
       // sphere-vs-frustum
       var vis = true;
       for (var pi = 0; pi < 5; pi++) { var P = planes[pi]; if (P[0] * ctr[f * 3] + P[1] * ctr[f * 3 + 1] + P[2] * ctr[f * 3 + 2] + P[3] < -rad[f]) { vis = false; break; } }
@@ -1347,7 +1355,7 @@ function chooseFragments(v) {
     chosen.push(fi); tris += t;
     if (tris > budget) break;
   }
-  return { chosen: chosen, score: score, cand: cand, order: order };
+  return { chosen: chosen, score: score, cand: cand, order: order, limited: chosen.length < cand.length };
 }
 
 async function runLoader() {
@@ -1356,6 +1364,7 @@ async function runLoader() {
     while (pendingView) {
       var v = pendingView, myGen = gen; pendingView = null;
       var pick = chooseFragments(v);
+      S.lastPick = { inView: pick.cand.length, chosen: pick.chosen.length, limited: pick.limited };
       // group by cell
       var byCell = new Map();
       for (var i = 0; i < pick.chosen.length; i++) {
@@ -1375,7 +1384,7 @@ async function runLoader() {
       queue.sort(function (a, b) { return rankOf.get(a.c) - rankOf.get(b.c); });
       // drop built cells that are not wanted any more if we are above budget
       trimBuilt(byCell);
-      post('loading', { pending: queue.length });
+      post('loading', { pending: queue.length, limited: pick.limited });
       for (var q = 0; q < queue.length; q++) {
         if (gen !== myGen && pendingView) break;     // camera moved: re-plan
         await buildCell(queue[q].c, queue[q].frs);
@@ -1635,7 +1644,7 @@ HANDLERS.raycast = async function (m) {
 HANDLERS.stats = function () {
   if (!S) return null;
   var t = 0; S.built.forEach(function (b) { t += b.tris; });
-  return { cells: S.cells.length, built: S.built.size, tris: t, cacheMB: Math.round(S.meshBytes / 1048576), records: S.meshCache.size };
+  return { pick: S.lastPick, budget: S.budget, cells: S.cells.length, built: S.built.size, tris: t, cacheMB: Math.round(S.meshBytes / 1048576), records: S.meshCache.size };
 };
 
 </script>
@@ -1674,7 +1683,7 @@ worker.onmessage = e => {
     case 'progress': $('loadStage').textContent = m.stage; $('loadBar').style.width = Math.round(m.frac * 100) + '%'; break;
     case 'cell': addCell(m); break;
     case 'drop': dropCell(m.cell); break;
-    case 'loading': loadingCells = m.pending; updateStatus(); $('busy').classList.toggle('hidden', !m.pending); break;
+    case 'loading': loadingCells = m.pending; updateStatus(); if (m.limited !== undefined) detailLimited(m.limited); $('busy').classList.toggle('hidden', !m.pending); break;
     case 'error': console.error(m.message); toast('Problem: ' + String(m.message).split('\n')[0], 5000); break;
   }
 };
@@ -1856,7 +1865,7 @@ async function openFile(file) {
   $('loadDetail').textContent = isUrl ? file : file.name + ', ' + (file.size / 1048576).toFixed(0) + ' MB';
   clearModel(); M = null;
   try {
-    const budget = +store.get('budget', isTouch ? 2500000 : 5000000);
+    const budget = +store.get('detail', isTouch ? 5000000 : 8000000);
     const info = await call('open', { file: isUrl ? null : file, url: isUrl ? new URL(file, location.href).href : null, budget, cacheLimit: isTouch ? 350 * 1048576 : 900 * 1048576 });
     M = info;
     initState(info.fragments);
@@ -2449,21 +2458,28 @@ $('findText').addEventListener('input', () => {
 $('findList').onclick = async e => { const it = e.target.closest('.it'); if (!it) return; await selectPaths([+it.dataset.p]); fitSelection(); };
 
 /* --------------------------------------------------- settings */
-$('setBudget').value = String(store.get('budget', isTouch ? 2500000 : 5000000));
+$('setBudget').value = String(store.get('detail', isTouch ? 5000000 : 8000000));
 $('setRes').value = resolution;
 $('setBg').value = store.get('bg', 'grad');
 $('setLines').checked = showLines;
 $('setStats').checked = store.get('stats', false);
-$('setBudget').onchange = e => { store.set('budget', +e.target.value); worker.postMessage({ type: 'settings', budget: +e.target.value }); sendView(); };
+$('setBudget').onchange = e => { store.set('detail', +e.target.value); limitNoticeShown = false; worker.postMessage({ type: 'settings', budget: +e.target.value }); sendView(); };
 $('setRes').onchange = e => { resolution = e.target.value; store.set('res', resolution); };
 $('setBg').onchange = e => { store.set('bg', e.target.value); setBackground(e.target.value); };
 $('setLines').onchange = e => { showLines = e.target.checked; store.set('lines', showLines); for (const c of cells.values()) for (const o of c.objs) if (o.userData.lines) o.visible = showLines; requestRender(); };
+$('detailNote').onclick = () => $('settings').classList.remove('hidden');
 $('setStats').onchange = e => { store.set('stats', e.target.checked); $('status').classList.toggle('hidden', !e.target.checked || !M); };
 $('settings').addEventListener('click', e => { if (e.target.id === 'settings') $('settings').classList.add('hidden'); });
 setBackground(store.get('bg', 'grad'));
 
 /* --------------------------------------------------- status */
 let fps = 0, frames = 0, fpsT = performance.now();
+let limitNoticeShown = false;
+// The loader keeps a set number of triangles on screen. When that hides visible items, say so once.
+function detailLimited(on) {
+  $('detailNote').classList.toggle('hidden', !on);
+  if (on && !limitNoticeShown) { limitNoticeShown = true; toast('Some small items are not drawn at this detail level. Raise Detail in Settings to show everything.', 7000); }
+}
 function updateStatus() {
   if ($('status').classList.contains('hidden')) return;
   $('status').textContent = `${(shownTris / 1e6).toFixed(2)}M tris · ${cells.size} cells${loadingCells ? ' · loading ' + loadingCells : ''} · ${fps} fps`;

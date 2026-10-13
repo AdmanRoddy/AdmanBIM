@@ -310,7 +310,8 @@ var NWD = (function () {
       }
       throw new Error('bad polyline table');
     }
-    function readStrips(q) {
+    function readStrips(q) { try { return readStripsAt(q); } catch (e) { return null; } }
+    function readStripsAt(q) {
       if (q + 12 > b.length) return null;
       var A = U(q), B = U(q + 4), C = U(q + 8);
       if (B < 1 || B > 32 || C < 1 || C > 5e6) return null;
@@ -418,7 +419,7 @@ var NWD = (function () {
     var kindOf = new Grow(Int32Array, 1 << 16), idxOf = new Grow(Int32Array, 1 << 16);  // by object id - 100
     var nextId = 100;
     var X = { t: new Grow(Float64Array, 1 << 16), m: new Grow(Float32Array, 1 << 17), n: 0 };
-    var G = { geom: new Grow(Int32Array), box: new Grow(Float32Array), n: 0 };
+    var G = { geom: new Grow(Int32Array), box: new Grow(Float32Array), off: new Grow(Float64Array), n: 0 };
     var mats = [], apps = [];
     var F = { geo: new Grow(Int32Array, 1 << 16), node: new Grow(Int32Array, 1 << 16), xf: new Grow(Int32Array, 1 << 16), app: new Grow(Int32Array, 1 << 16) };
     var K_FRAG = 1, K_XF = 2, K_APP = 3, K_MAT = 4, K_GEO = 5, K_OTHER = 6;
@@ -467,7 +468,7 @@ var NWD = (function () {
         }
         case 93: {
           var gi = G.n++; for (var k2 = 0; k2 < 6; k2++) G.box.push(r.f32());
-          r.f64(); r.f64(); r.f64(); r.f32(); r.u32(); G.geom.push(r.u32() - 1);
+          G.off.push(r.f64()); G.off.push(r.f64()); G.off.push(r.f64()); r.f32(); r.u32(); G.geom.push(r.u32() - 1);
           reg(id, K_GEO, gi); return { kind: K_GEO, index: gi };
         }
         case 185: {
@@ -488,7 +489,7 @@ var NWD = (function () {
       var a = F.app.a[i]; mat[i] = a >= 0 ? apps[a].mat : -1;
     }
     return { count: nF, geom: geom, node: node, xf: xfi, mat: mat, gbox: gbox,
-      xfT: X.t.done(), xfM: X.m.done(), boxes: G.box.done(), materials: mats };
+      xfT: X.t.done(), xfM: X.m.done(), boxes: G.box.done(), offsets: G.off.done(), materials: mats };
   }
 
   /* ------------------------------------------------------------------ logical hierarchy (model tree + properties) */

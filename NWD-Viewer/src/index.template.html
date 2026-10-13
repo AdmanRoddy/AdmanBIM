@@ -116,6 +116,7 @@
 
   <div id="ctx" class="ctx hidden"></div>
   <div id="status" class="status mono hidden"></div>
+  <button id="detailNote" class="detail-note hidden">Detail limit reached</button>
   <div id="toast" class="toast hidden"></div>
 </main>
 
@@ -150,10 +151,10 @@
     <div class="sec-h"><span class="n">⚙</span> SETTINGS <button class="x" data-close="settings">×</button></div>
     <label>Detail / performance
       <select id="setBudget">
-        <option value="1000000">Low, for older iPads</option>
-        <option value="2500000" selected>Medium</option>
-        <option value="5000000">High</option>
-        <option value="10000000">Ultra, for computers</option>
+        <option value="2500000">Low, for older iPads</option>
+        <option value="5000000" selected>Medium</option>
+        <option value="8000000">High</option>
+        <option value="15000000">Ultra, for computers</option>
       </select>
     </label>
     <label>Selection resolution

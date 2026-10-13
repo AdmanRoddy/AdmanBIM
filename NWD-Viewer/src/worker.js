@@ -51,7 +51,7 @@ HANDLERS.open = async function (m) {
   progress('Reading file directory', 0);
   var f = await NWD.openFile(src);
   var st = { f: f, name: m.url ? src.name : m.file.name, size: src.size, chunkCache: new Map(), meshCache: new Map(), meshBytes: 0, recTris: new Map(),
-    budget: m.budget || 3000000, cacheLimit: m.cacheLimit || 400 * 1048576, cells: [], built: new Map() };
+    budget: m.budget || 5000000, cacheLimit: m.cacheLimit || 400 * 1048576, cells: [], built: new Map() };
 
   progress('Reading geometry index', 0.05);
   st.G = await NWD.openGeometry(f);
@@ -135,7 +135,11 @@ function quatMat(x, y, z, w) {
 }
 function fragXform(i) {
   var F = S.F, xi = F.xf[i];
-  if (xi < 0) return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], s: 1, t: [0, 0, 0] };
+  if (xi < 0) {
+    // no transform: the geometry link's offset places the object (used by some Revit exports for straight conduit/pipe)
+    var g = F.gbox[i], O = F.offsets;
+    return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], s: 1, t: g >= 0 ? [O[g * 3], O[g * 3 + 1], O[g * 3 + 2]] : [0, 0, 0] };
+  }
   return { m: Array.prototype.slice.call(F.xfM, xi * 9, xi * 9 + 9), s: 1, t: [F.xfT[xi * 3], F.xfT[xi * 3 + 1], F.xfT[xi * 3 + 2]] };
 }
 function buildFragmentBounds() {
@@ -293,7 +297,7 @@ function estTris(rec) {
 
 // Decide which fragments to show: in view, big enough on screen, best first, within the triangle budget.
 function chooseFragments(v) {
-  var planes = frustumPlanes(v.vp), cam = v.cam, k = v.projScale, minPx = v.minPx || 1.5;
+  var planes = frustumPlanes(v.vp), cam = v.cam, k = v.projScale, minPx = v.minPx || 1.5;  // items below minPx are loaded last
   var cand = [], score = [], ctr = S.ctr, rad = S.rad, geom = S.F.geom, box = S.box, clip = v.clip || [];
   for (var c = 0; c < S.cells.length; c++) {
     var cell = S.cells[c];
@@ -304,7 +308,7 @@ function chooseFragments(v) {
       var dx = ctr[f * 3] - cam[0], dy = ctr[f * 3 + 1] - cam[1], dz = ctr[f * 3 + 2] - cam[2];
       var d = Math.sqrt(dx * dx + dy * dy + dz * dz) - rad[f];
       var px = rad[f] * k / Math.max(d, 0.1);
-      if (px < minPx) continue;
+      if (px < 0.15) continue;   // truly invisible; smaller-than-minPx items still load after bigger ones if the budget allows
       // sphere-vs-frustum
       var vis = true;
       for (var pi = 0; pi < 5; pi++) { var P = planes[pi]; if (P[0] * ctr[f * 3] + P[1] * ctr[f * 3 + 1] + P[2] * ctr[f * 3 + 2] + P[3] < -rad[f]) { vis = false; break; } }
@@ -326,7 +330,7 @@ function chooseFragments(v) {
     chosen.push(fi); tris += t;
     if (tris > budget) break;
   }
-  return { chosen: chosen, score: score, cand: cand, order: order };
+  return { chosen: chosen, score: score, cand: cand, order: order, limited: chosen.length < cand.length };
 }
 
 async function runLoader() {
@@ -335,6 +339,7 @@ async function runLoader() {
     while (pendingView) {
       var v = pendingView, myGen = gen; pendingView = null;
       var pick = chooseFragments(v);
+      S.lastPick = { inView: pick.cand.length, chosen: pick.chosen.length, limited: pick.limited };
       // group by cell
       var byCell = new Map();
       for (var i = 0; i < pick.chosen.length; i++) {
@@ -354,7 +359,7 @@ async function runLoader() {
       queue.sort(function (a, b) { return rankOf.get(a.c) - rankOf.get(b.c); });
       // drop built cells that are not wanted any more if we are above budget
       trimBuilt(byCell);
-      post('loading', { pending: queue.length });
+      post('loading', { pending: queue.length, limited: pick.limited });
       for (var q = 0; q < queue.length; q++) {
         if (gen !== myGen && pendingView) break;     // camera moved: re-plan
         await buildCell(queue[q].c, queue[q].frs);
@@ -614,5 +619,5 @@ HANDLERS.raycast = async function (m) {
 HANDLERS.stats = function () {
   if (!S) return null;
   var t = 0; S.built.forEach(function (b) { t += b.tris; });
-  return { cells: S.cells.length, built: S.built.size, tris: t, cacheMB: Math.round(S.meshBytes / 1048576), records: S.meshCache.size };
+  return { pick: S.lastPick, budget: S.budget, cells: S.cells.length, built: S.built.size, tris: t, cacheMB: Math.round(S.meshBytes / 1048576), records: S.meshCache.size };
 };
