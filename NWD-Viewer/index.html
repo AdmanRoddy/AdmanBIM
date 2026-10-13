@@ -1,0 +1,2468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b2339">
+<title>Adman Model Viewer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0b2339; --navy-2:#132f4a; --red:#bd1d23;
+  --bg:#eef1f4; --card:#fff; --ink:#0b2339; --muted:#5b6b7b; --line:#d6dde4; --soft:#f5f7f9;
+  --sel:#2f80ff;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --disp:'Barlow Semi Condensed','Arial Narrow',Arial,sans-serif;
+  --ui:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --top-h:62px; --tools-h:66px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;background:var(--navy);color:var(--ink);font-family:var(--ui);font-size:15px;-webkit-text-size-adjust:100%;overflow:hidden;overscroll-behavior:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.hidden{display:none!important}
+.muted{color:var(--muted)} .small{font-size:12.5px} .mono{font-family:var(--mono)} .pad{padding:14px}
+
+/* ---------- top bar ---------- */
+.top{position:fixed;left:0;right:0;top:0;z-index:30;background:var(--navy);color:#fff;border-bottom:3px solid var(--red);padding-top:env(safe-area-inset-top)}
+.top-in{display:flex;align-items:center;gap:12px;padding:8px 14px;height:var(--top-h)}
+.logo .plate{background:#fff;color:var(--navy);border-radius:4px;padding:5px 8px;font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:1.5px;border-left:4px solid var(--red)}
+.title{display:flex;flex-direction:column;line-height:1;min-width:0;flex:1}
+.title h1{margin:0;font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:.3px;white-space:nowrap}
+.title small{font-family:var(--mono);font-size:10.5px;color:#9fb3c8;margin-top:4px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{display:flex;gap:8px}
+.tb{display:flex;align-items:center;gap:6px;background:var(--navy-2);border:1px solid #27476a;color:#fff;border-radius:6px;padding:8px 12px;font-weight:600;font-size:14px}
+.tb.primary{background:var(--red);border-color:var(--red)}
+.tb svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:640px){.tb span{display:none}.title small{display:none}.logo .plate{font-size:15px}}
+
+/* ---------- stage ---------- */
+#stage{position:fixed;left:0;right:0;top:calc(var(--top-h) + 3px + env(safe-area-inset-top));bottom:0;background:linear-gradient(#3d5268,#9fb0c0)}
+#view{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-h{display:flex;align-items:baseline;gap:8px;font-family:var(--mono);font-weight:600;font-size:12.5px;letter-spacing:1.4px;margin:0 0 10px;color:var(--navy)}
+.sec-h .n{color:var(--red)}
+.sec-h .x{margin-left:auto;border:0;background:none;font-size:20px;line-height:1;color:var(--muted);padding:0 4px}
+.welcome,.loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
+.welcome .card,.loader .card{max-width:520px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.25)}
+.welcome p{margin:8px 0 14px;line-height:1.45}
+.big{display:block;width:100%;background:var(--red);color:#fff;border:0;border-radius:6px;padding:14px;font-weight:600;font-size:17px;margin:6px 0 12px}
+.bar{height:8px;background:var(--soft);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin:6px 0 8px}
+.bar i{display:block;height:100%;width:0;background:var(--red);transition:width .2s}
+
+/* ---------- panels ---------- */
+.panel{position:absolute;top:10px;bottom:calc(var(--tools-h) + 14px + env(safe-area-inset-bottom));width:340px;max-width:calc(100% - 20px);background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;z-index:12;overflow:hidden}
+.panel.left{left:10px} .panel.right{right:10px}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--soft)}
+.tabs button{flex:1;border:0;background:none;padding:10px 6px;font-weight:600;font-size:13px;color:var(--muted);border-bottom:3px solid transparent}
+.tabs button.on{color:var(--navy);border-bottom-color:var(--red)}
+.tabbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.row{padding:10px 10px 4px} .row input{width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.small-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:8px 12px;font-weight:600;font-size:13px}
+.list .it{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--soft);font-size:14px}
+.list .it:active,.list .it.on{background:#e7f0ff}
+.list .it .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .it .del{border:0;background:none;color:var(--muted);font-size:18px}
+#findInfo{padding:0 12px 6px}
+
+/* tree */
+.tree{font-size:14px;padding:4px 0 40px}
+.tn{display:flex;align-items:center;min-height:36px;padding-right:6px;border-bottom:1px solid #f0f3f6;white-space:nowrap}
+.tn.sel{background:#dce9ff}
+.tn .tw{width:28px;height:36px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--muted);border:0;background:none;padding:0}
+.tn .tw svg{width:12px;height:12px;transition:transform .15s;fill:currentColor}
+.tn.open > .tw svg{transform:rotate(90deg)}
+.tn .ic{width:18px;height:18px;flex:none;margin-right:6px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:600;color:#fff}
+.ic.t1{background:#0b2339} .ic.t2{background:#6d4c9f} .ic.t3{background:#8a96a3} .ic.t4{background:#2a7d4f} .ic.t5{background:#c9781a} .ic.t6{background:#2f80ff}
+.tn .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;padding:8px 4px}
+.tn .eye{border:0;background:none;width:32px;height:32px;color:var(--muted);flex:none;padding:0}
+.tn .eye svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2}
+.tn.hid .lb{color:#9aa6b2;font-style:italic}
+.tkids{display:block}
+.more{padding:8px 12px;color:var(--sel);font-weight:600;font-size:13px}
+
+/* properties */
+.phead{padding:12px 14px 8px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.phead b{font-family:var(--disp);font-size:19px;line-height:1.15;word-break:break-word}
+.ptabs{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--soft)}
+.ptabs button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.ptabs button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.pbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+.ptable{width:100%;border-collapse:collapse;font-size:13.5px}
+.ptable td{padding:7px 12px;border-bottom:1px solid #edf1f4;vertical-align:top}
+.ptable td:first-child{color:var(--muted);width:45%;word-break:break-word}
+.ptable td:last-child{font-family:var(--mono);font-size:12.5px;word-break:break-word}
+.swatch{display:inline-block;width:12px;height:12px;border:1px solid #0003;border-radius:2px;vertical-align:-1px;margin-right:6px}
+
+/* tools */
+.tools{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--navy);border-top:3px solid var(--red);display:flex;gap:6px;justify-content:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom));overflow-x:auto}
+.tools .group{display:flex;gap:2px;padding:0 6px;border-right:1px solid #27476a}
+.tools .group:last-child{border-right:0}
+.tools button{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:56px;border:0;background:none;color:#c9d6e3;border-radius:6px;padding:6px 6px 4px;font-size:11px;font-weight:600}
+.tools button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tools button.on{background:var(--navy-2);color:#fff;box-shadow:inset 0 -3px 0 var(--red)}
+.tools button:active{background:#1d3d5f}
+.tools button[disabled]{opacity:.4}
+@media (max-width:820px){.tools button span{display:none}.tools button{min-width:44px}}
+
+/* floating cards */
+.float-card{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--tools-h) + 14px + env(safe-area-inset-bottom));z-index:14;background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.25);width:min(460px,calc(100% - 20px))}
+.float-card input[type=range]{width:100%}
+.float-card label{display:flex;gap:6px;align-items:center;font-size:13px;margin:4px 0}
+.seg{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}
+.seg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:6px;padding:7px 6px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+#measureOut{font-size:13px;line-height:1.5;margin-bottom:6px}
+#measureOut b{font-size:18px;color:var(--navy)}
+
+.cube{position:absolute;right:14px;top:14px;z-index:11;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;align-items:center;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.cube button{border:1px solid var(--line);background:#fff;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:600;padding:6px 8px;min-width:44px;color:var(--navy)}
+.cube-row{display:flex;gap:4px}
+.panel.right:not(.hidden) ~ .cube{right:362px}
+
+.status{position:absolute;left:10px;bottom:calc(var(--tools-h) + 12px + env(safe-area-inset-bottom));z-index:10;background:rgba(11,35,57,.8);color:#cfe0f0;border-radius:6px;padding:5px 9px;font-size:11px;pointer-events:none}
+.toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:40;background:var(--navy);color:#fff;border-left:4px solid var(--red);border-radius:6px;padding:10px 14px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:90%}
+.ctx{position:absolute;z-index:30;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;min-width:190px}
+.ctx button{display:block;width:100%;text-align:left;border:0;background:#fff;padding:12px 14px;font-size:14px;border-bottom:1px solid var(--soft)}
+.ctx button:active{background:#e7f0ff}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(11,35,57,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal .card{width:min(440px,100%)}
+.modal label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;margin:10px 0}
+.modal label.chk{flex-direction:row;align-items:center;font-weight:500}
+.modal select{padding:9px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.mlabel{position:absolute;z-index:9;pointer-events:none;background:var(--navy);color:#fff;font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:4px;transform:translate(-50%,-130%);white-space:nowrap;border-left:3px solid var(--red)}
+
+.busy{position:absolute;left:0;right:0;top:0;height:3px;z-index:20;overflow:hidden;pointer-events:none}
+.busy i{position:absolute;top:0;bottom:0;width:30%;background:#ffb4b6;animation:busy 1.1s linear infinite}
+@keyframes busy{from{left:-30%}to{left:100%}}
+
+.vf{background:var(--soft)}
+.vkids.hidden{display:none}
+
+input,select,.ptable td,.phead b{-webkit-user-select:text;user-select:text}
+.it .sub{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js"}}</script>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="logo"><div class="plate">ADMAN</div></div>
+    <div class="title"><h1>Model Viewer</h1><small id="fileLabel">NAVISWORKS NWD / NWC</small></div>
+    <div class="top-actions">
+      <button class="tb" id="btnPanelLeft" title="Selection tree, viewpoints, find"><svg viewBox="0 0 24 24"><path d="M3 5h18M3 12h18M3 19h18"/></svg><span>Tree</span></button>
+      <button class="tb" id="btnPanelRight" title="Properties"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg><span>Properties</span></button>
+      <button class="tb primary" id="btnOpen"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg><span>Open</span></button>
+    </div>
+  </div>
+</header>
+
+<main id="stage">
+  <canvas id="view"></canvas>
+  <div id="busy" class="busy hidden"><i></i></div>
+
+  <div id="welcome" class="welcome">
+    <div class="card">
+      <div class="sec-h"><span class="n">01</span> OPEN A MODEL</div>
+      <p>Open a Navisworks <b>.nwd</b> or <b>.nwc</b> file from Files, iCloud Drive, OneDrive or a shared drive. The file is read on this device only — nothing is uploaded.</p>
+      <button class="big" id="btnOpen2">Choose model file…</button>
+      <p class="muted small">Large models (1 GB+) open in a few seconds; detail streams in as you move around, the same way Navisworks does.</p>
+      <div id="dropHint" class="muted small">On a computer you can also drag a file onto this window.</div>
+    </div>
+  </div>
+
+  <div id="loader" class="loader hidden">
+    <div class="card">
+      <div class="sec-h"><span class="n">··</span> <span id="loadStage">Opening</span></div>
+      <div class="bar"><i id="loadBar"></i></div>
+      <div class="muted small" id="loadDetail"></div>
+    </div>
+  </div>
+
+  <!-- left panel: tree / viewpoints / find -->
+  <aside id="left" class="panel left hidden">
+    <div class="tabs">
+      <button data-tab="tree" class="on">Selection Tree</button>
+      <button data-tab="views">Viewpoints</button>
+      <button data-tab="find">Find</button>
+    </div>
+    <div class="tabbody" id="tab-tree"><div id="tree" class="tree"></div></div>
+    <div class="tabbody hidden" id="tab-views">
+      <div class="row"><button class="small-btn" id="btnSaveView">+ Save current view</button></div>
+      <div id="viewList" class="list"></div>
+    </div>
+    <div class="tabbody hidden" id="tab-find">
+      <div class="row"><input id="findText" type="search" placeholder="Name or type, e.g. Conduit, Panel LP-1, Doors"></div>
+      <div class="muted small" id="findInfo"></div>
+      <div id="findList" class="list"></div>
+    </div>
+  </aside>
+
+  <!-- right panel: properties -->
+  <aside id="right" class="panel right hidden">
+    <div class="phead"><b id="propTitle">Properties</b><span class="muted small" id="propType"></span></div>
+    <div class="ptabs" id="propTabs"></div>
+    <div class="pbody" id="propBody"><div class="muted small pad">Tap an item in the model or the tree to see its properties.</div></div>
+  </aside>
+
+  <!-- view cube -->
+  <div id="cube" class="cube hidden">
+    <button data-v="top">TOP</button>
+    <div class="cube-row"><button data-v="left">L</button><button data-v="front">FRONT</button><button data-v="right">R</button></div>
+    <div class="cube-row"><button data-v="back">BACK</button><button data-v="iso">ISO</button><button data-v="bottom">BTM</button></div>
+  </div>
+
+  <!-- tool option strips -->
+  <div id="sectionBox" class="float-card hidden">
+    <div class="sec-h"><span class="n">§</span> SECTIONING <button class="x" data-close="sectionBox">×</button></div>
+    <div class="seg" id="secMode"><button data-m="off" class="on">Off</button><button data-m="plane">Plane</button><button data-m="box">Box</button></div>
+    <div id="secPlane" class="hidden">
+      <div class="seg" id="secAxis"><button data-a="top" class="on">Top</button><button data-a="bottom">Bottom</button><button data-a="front">Front</button><button data-a="back">Back</button><button data-a="left">Left</button><button data-a="right">Right</button></div>
+      <input type="range" id="secPos" min="0" max="1000" value="700">
+    </div>
+    <div id="secBox" class="hidden">
+      <label>X <input type="range" class="bx" data-i="0" min="0" max="1000" value="0"><input type="range" class="bx" data-i="3" min="0" max="1000" value="1000"></label>
+      <label>Y <input type="range" class="bx" data-i="1" min="0" max="1000" value="0"><input type="range" class="bx" data-i="4" min="0" max="1000" value="1000"></label>
+      <label>Z <input type="range" class="bx" data-i="2" min="0" max="1000" value="0"><input type="range" class="bx" data-i="5" min="0" max="1000" value="1000"></label>
+      <button class="small-btn" id="secFit">Fit box to selection</button>
+    </div>
+  </div>
+
+  <div id="measureBox" class="float-card hidden">
+    <div class="sec-h"><span class="n">⟷</span> MEASURE <button class="x" data-close="measureBox">×</button></div>
+    <div id="measureOut" class="mono">Tap two points on the model.</div>
+    <div class="row"><button class="small-btn" id="measureClear">Clear</button></div>
+  </div>
+
+  <div id="walkBox" class="float-card hidden">
+    <div class="sec-h"><span class="n">⇧</span> WALK <button class="x" data-close="walkBox">×</button></div>
+    <div class="muted small">Drag up/down to move, left/right to turn. Two fingers: slide sideways / up and down. Keys: W A S D, Q / E.</div>
+    <label class="small">Speed <input type="range" id="walkSpeed" min="1" max="100" value="35"></label>
+  </div>
+
+  <div id="ctx" class="ctx hidden"></div>
+  <div id="status" class="status mono hidden"></div>
+  <div id="toast" class="toast hidden"></div>
+</main>
+
+<nav id="tools" class="tools hidden">
+  <div class="group">
+    <button data-tool="orbit" class="on" title="Orbit"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="9" ry="4"/><path d="M12 3v18"/></svg><span>Orbit</span></button>
+    <button data-tool="pan" title="Pan"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M12 2l-3 3m3-3 3 3M12 22l-3-3m3 3 3-3M2 12l3-3m-3 3 3 3M22 12l-3-3m3 3-3 3"/></svg><span>Pan</span></button>
+    <button data-tool="zoom" title="Zoom"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6M10 7v6"/></svg><span>Zoom</span></button>
+    <button data-tool="look" title="Look around"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Look</span></button>
+    <button data-tool="walk" title="Walk"><svg viewBox="0 0 24 24"><circle cx="13" cy="4" r="2"/><path d="m9 21 3-7 3 3v4M8 11l3-4 4 2 2 4M12 14l-1-4"/></svg><span>Walk</span></button>
+  </div>
+  <div class="group">
+    <button data-act="fit" title="Zoom all"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><span>All</span></button>
+    <button data-act="fitsel" title="Zoom to selection"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6"/></svg><span>Selected</span></button>
+    <button data-act="cube" title="View directions"><svg viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg><span>Views</span></button>
+  </div>
+  <div class="group">
+    <button data-act="hide" title="Hide selected"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7c2 0 3.8.7 5.3 1.7M22 12s-4 7-10 7c-2 0-3.8-.7-5.3-1.7M3 3l18 18"/></svg><span>Hide</span></button>
+    <button data-act="isolate" title="Hide unselected"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="8"/><path d="M3 3h4M17 3h4v4M21 17v4h-4M7 21H3v-4M3 7V3"/></svg><span>Isolate</span></button>
+    <button data-act="unhide" title="Unhide all"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Unhide</span></button>
+  </div>
+  <div class="group">
+    <button data-tool="measure" title="Measure"><svg viewBox="0 0 24 24"><path d="M3 17 17 3l4 4L7 21z"/><path d="m7 13 2 2m1-5 2 2m1-5 2 2"/></svg><span>Measure</span></button>
+    <button data-act="section" title="Sectioning"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/><path d="M2 13h20" stroke-dasharray="3 2"/></svg><span>Section</span></button>
+    <button data-act="render" title="Shaded / wireframe"><svg viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10M3 17l9-5 9 5"/></svg><span>Style</span></button>
+    <button data-act="settings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span>Settings</span></button>
+  </div>
+</nav>
+
+<div id="settings" class="modal hidden">
+  <div class="card">
+    <div class="sec-h"><span class="n">⚙</span> SETTINGS <button class="x" data-close="settings">×</button></div>
+    <label>Detail / performance
+      <select id="setBudget">
+        <option value="1000000">Low — older iPads</option>
+        <option value="2500000" selected>Medium</option>
+        <option value="5000000">High</option>
+        <option value="10000000">Ultra — computers</option>
+      </select>
+    </label>
+    <label>Selection resolution
+      <select id="setRes">
+        <option value="first" selected>First Object</option>
+        <option value="last">Last Object</option>
+        <option value="geometry">Geometry</option>
+        <option value="layer">Layer</option>
+        <option value="file">File</option>
+      </select>
+    </label>
+    <label>Background
+      <select id="setBg"><option value="grad" selected>Graduated</option><option value="dark">Dark</option><option value="light">Light</option><option value="white">White</option></select>
+    </label>
+    <label class="chk"><input type="checkbox" id="setLines" checked> Show lines (center lines, 2D)</label>
+    <label class="chk"><input type="checkbox" id="setStats"> Show performance stats</label>
+    <div class="muted small" id="aboutText">Independent viewer — reads Navisworks files directly on this device.</div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" hidden>
+
+<script type="text/plain" id="worker-src">
+/* NWD/NWC decoder — independent implementation written from analysis of sample files.
+   Runs in a browser Web Worker (iPad Safari) and in Node for testing. No dependencies.
+   Exposes a single global: NWD. */
+var NWD = (function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ inflate (RFC 1950/1951) */
+  var LBASE = [3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258];
+  var LEXT = [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0];
+  var DBASE = [1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577];
+  var DEXT = [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13];
+  var CLORDER = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
+
+  // Lookup table indexed by the next `bits` input bits (LSB first); entry = symbol << 4 | codeLength.
+  function buildTable(lengths, n) {
+    var max = 0, i;
+    for (i = 0; i < n; i++) if (lengths[i] > max) max = lengths[i];
+    if (max === 0) max = 1;
+    var count = new Uint16Array(16), next = new Uint16Array(16);
+    for (i = 0; i < n; i++) count[lengths[i]]++;
+    count[0] = 0;
+    var code = 0;
+    for (var b = 1; b < 16; b++) { code = (code + count[b - 1]) << 1; next[b] = code; }
+    var size = 1 << max, table = new Uint32Array(size);
+    for (var sym = 0; sym < n; sym++) {
+      var len = lengths[sym]; if (!len) continue;
+      var c = next[len]++, r = 0;
+      for (var k = 0; k < len; k++) r = (r << 1) | ((c >> k) & 1);
+      for (var j = r; j < size; j += 1 << len) table[j] = (sym << 4) | len;
+    }
+    return { t: table, bits: max };
+  }
+  var FIXED_L, FIXED_D;
+  function fixedTables() {
+    if (!FIXED_L) {
+      var l = new Uint8Array(288), i;
+      for (i = 0; i < 144; i++) l[i] = 8; for (; i < 256; i++) l[i] = 9; for (; i < 280; i++) l[i] = 7; for (; i < 288; i++) l[i] = 8;
+      FIXED_L = buildTable(l, 288);
+      var d = new Uint8Array(30); d.fill(5); FIXED_D = buildTable(d, 30);
+    }
+  }
+
+  // Inflates one zlib stream starting at src[start]. Returns { data, consumed } (consumed includes header and adler32).
+  function inflate(src, start, sizeHint) {
+    var pos = start || 0;
+    var cmf = src[pos], flg = src[pos + 1];
+    if ((cmf & 15) !== 8 || ((cmf << 8) | flg) % 31 !== 0) throw new Error('not a zlib stream');
+    pos += 2; if (flg & 32) pos += 4;
+    var out = new Uint8Array(sizeHint > 0 ? sizeHint : Math.max(65536, (src.length - pos) * 4)), op = 0;
+    var bb = 0, bc = 0;
+    function need(n) { while (bc < n) { bb |= (pos < src.length ? src[pos] : 0) << bc; pos++; bc += 8; } }
+    function bits(n) { need(n); var v = bb & ((1 << n) - 1); bb >>>= n; bc -= n; return v; }
+    function grow(min) { var n = out.length * 2; while (n < min) n *= 2; var o = new Uint8Array(n); o.set(out.subarray(0, op)); out = o; }
+    function decodeSym(tb) {
+      need(tb.bits); var e = tb.t[bb & ((1 << tb.bits) - 1)], l = e & 15;
+      bb >>>= l; bc -= l; return e >>> 4;
+    }
+    var final = 0;
+    while (!final) {
+      final = bits(1); var type = bits(2);
+      if (type === 0) {
+        pos -= bc >> 3; bb = 0; bc = 0;     // byte align: return unused whole bytes, drop partial bits
+        var len = src[pos] | (src[pos + 1] << 8); pos += 4;
+        if (op + len > out.length) grow(op + len);
+        out.set(src.subarray(pos, pos + len), op); op += len; pos += len;
+        continue;
+      }
+      var lt, dt;
+      if (type === 1) { fixedTables(); lt = FIXED_L; dt = FIXED_D; }
+      else if (type === 2) {
+        var hlit = bits(5) + 257, hdist = bits(5) + 1, hclen = bits(4) + 4;
+        var cl = new Uint8Array(19), i;
+        for (i = 0; i < hclen; i++) cl[CLORDER[i]] = bits(3);
+        var ct = buildTable(cl, 19), lens = new Uint8Array(hlit + hdist);
+        for (i = 0; i < hlit + hdist;) {
+          var s = decodeSym(ct);
+          if (s < 16) lens[i++] = s;
+          else if (s === 16) { var prev = lens[i - 1], r = 3 + bits(2); while (r--) lens[i++] = prev; }
+          else if (s === 17) { var z = 3 + bits(3); while (z--) lens[i++] = 0; }
+          else { var z2 = 11 + bits(7); while (z2--) lens[i++] = 0; }
+        }
+        lt = buildTable(lens.subarray(0, hlit), hlit); dt = buildTable(lens.subarray(hlit), hdist);
+      } else throw new Error('bad deflate block');
+      var lmask = (1 << lt.bits) - 1, dmask = (1 << dt.bits) - 1, ltab = lt.t, dtab = dt.t, lbits = lt.bits, dbits = dt.bits;
+      for (;;) {
+        if (bc < lbits) need(lbits);
+        var e = ltab[bb & lmask], l = e & 15; bb >>>= l; bc -= l; var sym = e >>> 4;
+        if (sym < 256) { if (op >= out.length) grow(op + 1); out[op++] = sym; continue; }
+        if (sym === 256) break;
+        sym -= 257;
+        var length = LBASE[sym]; if (LEXT[sym]) length += bits(LEXT[sym]);
+        if (bc < dbits) need(dbits);
+        var e2 = dtab[bb & dmask], l2 = e2 & 15; bb >>>= l2; bc -= l2; var ds = e2 >>> 4;
+        var dist = DBASE[ds]; if (DEXT[ds]) dist += bits(DEXT[ds]);
+        if (op + length > out.length) grow(op + length);
+        var from = op - dist;
+        if (dist >= length) { out.copyWithin(op, from, from + length); op += length; }
+        else { for (var q = 0; q < length; q++) out[op++] = out[from + q]; }
+      }
+    }
+    // return unused whole bytes of the bit buffer, then skip adler32
+    pos -= bc >> 3;
+    pos += 4;
+    return { data: op === out.length ? out : out.subarray(0, op), consumed: pos - (start || 0) };
+  }
+
+  /* ------------------------------------------------------------------ file access */
+  // source: { size, read(offset, length) -> Promise<Uint8Array> }
+  function blobSource(blob) {
+    return {
+      size: blob.size, name: blob.name,
+      read: function (off, len) { return blob.slice(off, off + len).arrayBuffer().then(function (b) { return new Uint8Array(b); }); }
+    };
+  }
+
+  // Remote file read with HTTP range requests (server must allow Range + CORS).
+  async function urlSource(url) {
+    var r = await fetch(url, { headers: { Range: 'bytes=0-0' } });
+    var cr = r.headers.get('Content-Range'), size = cr ? +cr.split('/')[1] : +r.headers.get('Content-Length');
+    if (!size) throw new Error('Server did not report the file size');
+    return {
+      size: size, name: decodeURIComponent(url.split('/').pop().split('?')[0]),
+      read: function (off, len) {
+        return fetch(url, { headers: { Range: 'bytes=' + off + '-' + (off + len - 1) } }).then(function (res) {
+          if (res.status !== 206 && !(res.status === 200 && off === 0)) throw new Error('Range request failed (' + res.status + ')');
+          return res.arrayBuffer();
+        }).then(function (b) { return new Uint8Array(b, 0, Math.min(len, b.byteLength)); });
+      }
+    };
+  }
+
+  function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0; }
+  var TD = new TextDecoder('utf-8');
+
+  async function openFile(src) {
+    var head = await src.read(0, 128);
+    var hl = head.indexOf(10) + 1;
+    var header = TD.decode(head.subarray(0, hl - 1));
+    if (header.indexOf('#LcUStream') !== 0) throw new Error('Not a Navisworks file (missing LcUStream header)');
+    var m = /lichunk-(\d+)/.exec(header);
+    if (!m || +m[1] < 8) throw new Error('This file uses an older Navisworks format (' + (m ? 'lichunk-' + m[1] : 'unknown') + '). Save it from Navisworks 2015 or newer.');
+    var tail = await src.read(src.size - hl - 8, hl + 8);
+    var dirOff = u32(tail, 0) + u32(tail, 4) * 4294967296;
+    var dlen = Math.min(1 << 21, src.size - dirOff);
+    var dblk = await src.read(dirOff, dlen);
+    var dhl = dblk.indexOf(10) + 1;
+    var z = (dhl + 7) & ~7; if (dblk[z] !== 0x78) z += 8;
+    var dir = inflate(dblk, z).data;
+    var r = new Reader(dir);
+    r.u32(); var count = r.u32(), sections = [];
+    for (var k = 0; k < count; k++) {
+      var name = r.str(), version = r.u32(), offset = r.u64(), length = r.u64(), a = r.u32(), b = r.u32();
+      sections.push({ name: name.split('\\').pop(), version: version, offset: offset, length: length, a: a, b: b });
+    }
+    var f = { src: src, header: header, sections: sections, size: src.size };
+    f.section = function (n) { for (var i = 0; i < sections.length; i++) if (sections[i].name === n) return sections[i]; return null; };
+    return f;
+  }
+
+  // Decompress a whole section.
+  async function readSection(f, sec, onProgress) {
+    if (!sec) return null;
+    var raw = await f.src.read(sec.offset, sec.length);
+    if (sec.a === 4 && raw[4] === 0x78) {               // [u32 chunkSize] + zlib chunks (+ index member at end)
+      var parts = [], total = 0, p = 4, end = sec.length - (sec.b || 0);
+      while (p < end && raw[p] === 0x78) {
+        var res = inflate(raw, p, u32(raw, 0)); parts.push(res.data); total += res.data.length; p += res.consumed;
+        if (onProgress && parts.length % 64 === 0) onProgress(p / end);
+      }
+      var outb = new Uint8Array(total), o = 0;
+      for (var i = 0; i < parts.length; i++) { outb.set(parts[i], o); o += parts[i].length; }
+      return outb;
+    }
+    if (raw[0] === 0x78) return inflate(raw, 0).data;
+    return raw;
+  }
+
+  /* ------------------------------------------------------------------ binary reader with natural alignment */
+  function Reader(b) { this.b = b; this.dv = new DataView(b.buffer, b.byteOffset, b.byteLength); this.p = 0; }
+  Reader.prototype.u32 = function () { this.p = (this.p + 3) & ~3; var v = this.dv.getUint32(this.p, true); this.p += 4; return v; };
+  Reader.prototype.i32 = function () { this.p = (this.p + 3) & ~3; var v = this.dv.getInt32(this.p, true); this.p += 4; return v; };
+  Reader.prototype.f32 = function () { this.p = (this.p + 3) & ~3; var v = this.dv.getFloat32(this.p, true); this.p += 4; return v; };
+  Reader.prototype.f64 = function () { this.p = (this.p + 7) & ~7; var v = this.dv.getFloat64(this.p, true); this.p += 8; return v; };
+  Reader.prototype.u64 = function () { this.p = (this.p + 7) & ~7; var lo = this.dv.getUint32(this.p, true), hi = this.dv.getUint32(this.p + 4, true); this.p += 8; return hi * 4294967296 + lo; };
+  Reader.prototype.str = function () {
+    var n = this.i32(); if (n < 0) return null;
+    var s = TD.decode(this.b.subarray(this.p, this.p + n)); this.p += n; this.p = (this.p + 3) & ~3;
+    var z = s.indexOf('\0'); return z >= 0 ? s.slice(0, z) : s;
+  };
+  Reader.prototype.skipStr = function () { var n = this.i32(); if (n > 0) { this.p += n; this.p = (this.p + 3) & ~3; } };
+
+  /* ------------------------------------------------------------------ geometry store (random access) */
+  // Index member at the end of LcOpNwdGeometry: [nRecords][nChunks][chunk compressed sizes][record sizes].
+  async function openGeometry(f) {
+    var sec = f.section('LcOpNwdGeometry'); if (!sec) return null;
+    var pre = await f.src.read(sec.offset, 4);
+    var ixc = await f.src.read(sec.offset + sec.length - sec.b, sec.b);
+    var ix = inflate(ixc, 0).data;
+    var nRec = u32(ix, 0), nCh = u32(ix, 4);
+    var g = { sec: sec, chunkSize: u32(pre, 0), nRec: nRec, nCh: nCh,
+      chunkOff: new Float64Array(nCh + 1), recOff: new Float64Array(nRec + 1), recSize: new Uint32Array(nRec) };
+    g.chunkOff[0] = sec.offset + 4;
+    for (var i = 0; i < nCh; i++) g.chunkOff[i + 1] = g.chunkOff[i] + u32(ix, 8 + i * 4);
+    for (i = 0; i < nRec; i++) { var s = u32(ix, 8 + nCh * 4 + i * 4); g.recSize[i] = s; g.recOff[i + 1] = g.recOff[i] + s; }
+    return g;
+  }
+  // Fetch raw bytes of many records with as few reads as possible. Returns Map(recordIndex -> Uint8Array).
+  async function fetchRecords(f, g, list, chunkCache) {
+    var cs = g.chunkSize, need = new Map();
+    for (var i = 0; i < list.length; i++) {
+      var r = list[i], c0 = Math.floor(g.recOff[r] / cs), c1 = Math.floor((g.recOff[r + 1] - 1) / cs);
+      for (var c = c0; c <= c1; c++) if (!chunkCache.has(c)) need.set(c, true);
+    }
+    var chunks = Array.from(need.keys()).sort(function (a, b) { return a - b; });
+    // group consecutive chunks into single reads (up to 4 MB)
+    for (var k = 0; k < chunks.length;) {
+      var a = chunks[k], b = a; k++;
+      while (k < chunks.length && chunks[k] === b + 1 && g.chunkOff[chunks[k] + 1] - g.chunkOff[a] < 4194304) { b = chunks[k]; k++; }
+      var base = g.chunkOff[a], bytes = await f.src.read(base, g.chunkOff[b + 1] - base);
+      for (var c2 = a; c2 <= b; c2++) chunkCache.set(c2, inflate(bytes, g.chunkOff[c2] - base, cs).data);
+    }
+    var out = new Map();
+    for (i = 0; i < list.length; i++) {
+      r = list[i];
+      var s = g.recOff[r], e = g.recOff[r + 1], first = Math.floor(s / cs), last = Math.floor((e - 1) / cs);
+      var buf = new Uint8Array(e - s + 64), o = 0;
+      for (c = first; c <= last; c++) {
+        var ch = chunkCache.get(c), from = c === first ? s - c * cs : 0, to = c === last ? e - c * cs : ch.length;
+        buf.set(ch.subarray(from, to), o); o += to - from;
+      }
+      out.set(r, buf);
+    }
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ geometry records */
+  // Ref stream: 00-3f run of (c+1) new items; 40-7f copy (c-0x40) back; 80-bf repeat previous (c-0x7f) times;
+  // c0-df copy (c-0x40) back; e0-ef xx copy 12-bit distance back; f0-ff xx yy copy absolute 20-bit index.
+  function decodeRefStream(b, p, n) {
+    var idx = new Int32Array(n), out = 0, next = 0, c, k;
+    while (out < n) {
+      c = b[p++];
+      if (c < 0x40) { for (k = 0; k <= c && out < n; k++) idx[out++] = next++; }
+      else if (c < 0x80) { idx[out] = idx[out - (c - 0x40)]; out++; }
+      else if (c < 0xc0) { for (k = 0; k <= c - 0x80 && out < n; k++) { idx[out] = idx[out - 1]; out++; } }
+      else if (c < 0xe0) { idx[out] = idx[out - (c - 0x40)]; out++; }
+      else if (c < 0xf0) { idx[out] = idx[out - (((c & 15) << 8) | b[p++])]; out++; }
+      else { idx[out] = idx[((c & 15) << 16) | (b[p] << 8) | b[p + 1]]; p += 2; out++; }
+    }
+    return { idx: idx, p: p, newCount: next };
+  }
+  function skipCodes(b, p, n) {
+    var out = 0, c;
+    while (out < n) {
+      c = b[p++];
+      if (c < 0x40) out += c + 1;
+      else if (c >= 0x80 && c < 0xc0) out += c - 0x7f;
+      else if (c < 0xe0) out++;
+      else if (c < 0xf0) { p++; out++; }
+      else { p += 2; out++; }
+    }
+    return p;
+  }
+  var normalBytesHint = 6;
+
+  // Parses a geometry record at offset 0 of b. Returns { kind, pos:{n,vals,idx}, strips|polylines } or { kind, skip:true }.
+  function parseRecord(b) {
+    var dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    var U = function (q) { return dv.getUint32(q, true); }, I = function (q) { return dv.getInt32(q, true); };
+    var al4 = function (q) { return (q + 3) & ~3; };
+    if (U(0) !== 100) throw new Error('not a geometry record');
+    var kind = U(4), p = 8, rec = { kind: kind };
+    if (kind !== 94 && kind !== 95 && kind !== 96) { rec.skip = true; return rec; }
+    if (U(p) !== 101 || U(p + 4) !== 60) throw new Error('expected positions');
+    p += 8;
+    function readArray(dim) {
+      var n = U(p), nf = U(p + 4); p += 8;
+      if (nf % dim) throw new Error('bad array');
+      var vals = new Float32Array(nf);
+      for (var k = 0; k < nf; k++) vals[k] = dv.getFloat32(p + k * 4, true);
+      p += nf * 4;
+      var idx = null;
+      if (nf / dim < n) { var r = decodeRefStream(b, p, n); idx = r.idx; p = al4(r.p); }
+      return { n: n, vals: vals, idx: idx };
+    }
+    rec.pos = readArray(3);
+    var n = rec.pos.n, id = 102;
+    if (kind === 96) return rec;
+    function readPacked(q, count, bitsPer) {
+      var lens = new Uint32Array(count), bit = 0, sum = 0;
+      for (var k = 0; k < count; k++) {
+        var v = 0;
+        for (var j = 0; j < bitsPer; j++, bit++) { var w = U(q + (bit >> 5) * 4); v = (v << 1) | ((w >>> (31 - (bit & 31))) & 1); }
+        lens[k] = v; sum += v;
+      }
+      return { lens: lens, sum: sum, end: q + Math.ceil(bitsPer * count / 32) * 4 };
+    }
+    if (kind === 95) {
+      var g = 0; while (g < 64 && U(p) === 0) { p += 4; g += 4; }
+      if (U(p) === id && U(p + 4) === 58) {
+        p += 8; var nc = -I(p + 4), ne = U(p + 8); p += 12;
+        rec.colors = []; for (var k = 0; k < ne; k++) rec.colors.push(U(p + k * 4)); p += ne * 4;
+        p = al4(skipCodes(b, p, nc));
+      }
+      for (var q = p; q < p + 32; q += 4) {
+        var B = U(q + 4), C = U(q + 8);
+        if (B < 1 || B > 32 || C < 1 || C > n) continue;
+        var pk = readPacked(q + 12, C, B);
+        if (pk.sum === n) { rec.polylines = pk.lens; return rec; }
+      }
+      throw new Error('bad polyline table');
+    }
+    function readStrips(q) {
+      if (q + 12 > b.length) return null;
+      var A = U(q), B = U(q + 4), C = U(q + 8);
+      if (B < 1 || B > 32 || C < 1 || C > 5e6) return null;
+      var pk = readPacked(q + 12, C, B), e = pk.end;
+      var nIdx = U(e); e += 4; var indices = null;
+      if (nIdx) {
+        if (nIdx !== pk.sum) return null;
+        var r = decodeRefStream(b, e, nIdx); if (r.newCount > n) return null;
+        indices = r.idx; e = al4(r.p);
+      } else if (pk.sum !== n) return null;
+      return { lens: pk.lens, indices: indices, end: e };
+    }
+    function valid(q, k, nextId) {
+      if (k === 0) return readStrips(q) !== null || (U(q) === 0 && readStrips(q + 4) !== null);
+      if (U(q) === 0) return valid(q + 4, k - 1, nextId);
+      var c = U(q + 4); return U(q) === nextId && (c === 61 || c === 100 || c === 58);
+    }
+    for (var slot = 0; slot < 3; slot++) {
+      if (U(p) === 0) { p += 4; continue; }
+      if (U(p) !== id) throw new Error('bad mesh slot');
+      var t = U(p + 4); p += 8; id++;
+      var remaining = 2 - slot;
+      if (t === 61) {
+        if (I(p) >= 0) { readArray(2); continue; }
+        var un = -I(p), lim = Math.min(b.length - 16, p + 16 * un + 8192), qq = p + 4;
+        while (qq <= lim && !(U(qq) === id && I(qq + 8) === -un && (U(qq + 4) === 100 || U(qq + 4) === 58)) && !valid(qq, remaining, id)) qq += 4;
+        if (qq > lim) throw new Error('quantized uv end not found');
+        p = qq;
+      } else if (t === 100) {
+        var nn = -I(p), nex = U(p + 4); p += 8;
+        var sizes = normalBytesHint === 3 ? [3, 6] : [6, 3], done = false;
+        for (var si = 0; si < 2 && !done; si++) {
+          var cs = al4(p + nex * sizes[si]), e2 = nex === nn ? cs : al4(skipCodes(b, cs, nn));
+          if (valid(e2, remaining, id)) { p = e2; normalBytesHint = sizes[si]; done = true; }
+        }
+        if (!done) throw new Error('normals end not found');
+      } else if (t === 58) {
+        var nc2 = -I(p + 4), ne2 = U(p + 8); p += 12;
+        rec.colors = []; for (var k2 = 0; k2 < ne2; k2++) rec.colors.push(U(p + k2 * 4)); p += ne2 * 4;
+        p = al4(skipCodes(b, p, nc2));
+      } else throw new Error('unknown mesh child ' + t);
+    }
+    var s = readStrips(p); if (!s && U(p) === 0) s = readStrips(p + 4);
+    if (!s) throw new Error('bad strip table');
+    rec.strips = s;
+    return rec;
+  }
+
+  // Turns a parsed mesh record into indexed triangles with smooth per-strip normals.
+  // Returns { pos: Float32Array(n*3), nrm: Int8Array(n*3), index: Uint32Array, tris } in record-local coordinates.
+  function meshTriangles(rec) {
+    var P = rec.pos, n = P.n, vals = P.vals, idx = P.idx;
+    var pos = new Float32Array(n * 3);
+    for (var k = 0; k < n; k++) { var u = (idx ? idx[k] : k) * 3; pos[k * 3] = vals[u]; pos[k * 3 + 1] = vals[u + 1]; pos[k * 3 + 2] = vals[u + 2]; }
+    var I = rec.strips.indices, lens = rec.strips.lens, total = 0, i;
+    for (i = 0; i < lens.length; i++) if (lens[i] > 2) total += lens[i] - 2;
+    var tri = new Uint32Array(total * 3), t = 0, s = 0;
+    var acc = new Float32Array(n * 3);
+    for (i = 0; i < lens.length; i++) {
+      var len = lens[i];
+      for (var j = 2; j < len; j++) {
+        var a = I ? I[s + j - 2] : s + j - 2, b = I ? I[s + j - 1] : s + j - 1, c = I ? I[s + j] : s + j;
+        if (a === b || b === c || a === c) continue;
+        if (j & 1) { var x = a; a = b; b = x; }
+        tri[t++] = a; tri[t++] = b; tri[t++] = c;
+        var ax = pos[a * 3], ay = pos[a * 3 + 1], az = pos[a * 3 + 2];
+        var e1x = pos[b * 3] - ax, e1y = pos[b * 3 + 1] - ay, e1z = pos[b * 3 + 2] - az;
+        var e2x = pos[c * 3] - ax, e2y = pos[c * 3 + 1] - ay, e2z = pos[c * 3 + 2] - az;
+        var nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x;
+        acc[a * 3] += nx; acc[a * 3 + 1] += ny; acc[a * 3 + 2] += nz;
+        acc[b * 3] += nx; acc[b * 3 + 1] += ny; acc[b * 3 + 2] += nz;
+        acc[c * 3] += nx; acc[c * 3 + 1] += ny; acc[c * 3 + 2] += nz;
+      }
+      s += len;
+    }
+    var nrm = new Int8Array(n * 3);
+    for (k = 0; k < n; k++) {
+      var X = acc[k * 3], Y = acc[k * 3 + 1], Z = acc[k * 3 + 2], L = Math.sqrt(X * X + Y * Y + Z * Z) || 1;
+      nrm[k * 3] = Math.round(X / L * 127); nrm[k * 3 + 1] = Math.round(Y / L * 127); nrm[k * 3 + 2] = Math.round(Z / L * 127);
+    }
+    return { pos: pos, nrm: nrm, index: t === tri.length ? tri : tri.subarray(0, t), tris: t / 3 };
+  }
+  function lineSegments(rec) {
+    var P = rec.pos, n = P.n, pos = new Float32Array(n * 3);
+    for (var k = 0; k < n; k++) { var u = (P.idx ? P.idx[k] : k) * 3; pos[k * 3] = P.vals[u]; pos[k * 3 + 1] = P.vals[u + 1]; pos[k * 3 + 2] = P.vals[u + 2]; }
+    var seg = [], s = 0;
+    for (var i = 0; i < rec.polylines.length; i++) { var L = rec.polylines[i]; for (var j = 1; j < L; j++) seg.push(s + j - 1, s + j); s += L; }
+    return { pos: pos, index: Uint32Array.from(seg) };
+  }
+
+  /* ------------------------------------------------------------------ growable typed arrays */
+  function Grow(T, n) { this.T = T; this.a = new T(n || 1024); this.n = 0; }
+  Grow.prototype.push = function (v) { if (this.n >= this.a.length) { var b = new this.T(this.a.length * 2); b.set(this.a); this.a = b; } this.a[this.n++] = v; return this.n - 1; };
+  Grow.prototype.done = function () { return this.a.subarray(0, this.n); };
+
+  /* ------------------------------------------------------------------ fragments */
+  // Returns compact arrays: per fragment geom record, node (walk index), transform index, material index.
+  function parseFragments(buf) {
+    var r = new Reader(buf), dv = r.dv;
+    var kindOf = new Grow(Int32Array, 1 << 16), idxOf = new Grow(Int32Array, 1 << 16);  // by object id - 100
+    var nextId = 100;
+    var X = { t: new Grow(Float64Array, 1 << 16), q: new Grow(Float32Array, 1 << 16), s: new Grow(Float32Array, 1 << 14), n: 0 };
+    var G = { geom: new Grow(Int32Array), box: new Grow(Float32Array), n: 0 };
+    var mats = [], apps = [];
+    var F = { geo: new Grow(Int32Array, 1 << 16), node: new Grow(Int32Array, 1 << 16), xf: new Grow(Int32Array, 1 << 16), app: new Grow(Int32Array, 1 << 16) };
+    var K_FRAG = 1, K_XF = 2, K_APP = 3, K_MAT = 4, K_GEO = 5, K_OTHER = 6;
+    function reg(id, kind, index) { var k = id - 100; while (kindOf.n <= k) { kindOf.push(0); idxOf.push(-1); } kindOf.a[k] = kind; idxOf.a[k] = index; }
+    function ptr() {
+      var at = r.p, v = r.u32();
+      if (v === 0) return null;
+      if (v === 1) { var id = r.u32(); return { kind: kindOf.a[id - 100], index: idxOf.a[id - 100] }; }
+      if (v !== nextId) throw new Error('fragments: expected object ' + nextId + ' at ' + at);
+      nextId++; var cls = r.u32(); return readObject(v, cls);
+    }
+    function readObject(id, cls) {
+      var o;
+      switch (cls) {
+        case 13: {
+          r.f64(); r.u32(); r.u32(); r.u32(); var x = r.u32();
+          var fi = F.node.push(x); F.geo.push(-1); F.xf.push(-1); F.app.push(-1);
+          reg(id, K_FRAG, fi);
+          var xf = ptr(), ap = ptr(), ge = ptr();
+          F.xf.a[fi] = xf ? xf.index : -1; F.app.a[fi] = ap ? ap.index : -1; F.geo.a[fi] = ge ? ge.index : -1;
+          return { kind: K_FRAG, index: fi };
+        }
+        case 14: case 15: case 16: {
+          var xi = X.n++; X.t.push(r.f64()); X.t.push(r.f64()); X.t.push(r.f64());
+          if (cls === 14) { X.q.push(0); X.q.push(0); X.q.push(0); X.q.push(1); X.s.push(1); }
+          else { X.q.push(r.f64()); X.q.push(r.f64()); X.q.push(r.f64()); X.q.push(r.f64()); X.s.push(cls === 16 ? r.f64() : 1); }
+          reg(id, K_XF, xi); return { kind: K_XF, index: xi };
+        }
+        case 55: {
+          var flags = r.u32(), m = ptr(); if (flags & 0x30) ptr();
+          var ai = apps.length; apps.push({ flags: flags, mat: m ? m.index : -1 }); reg(id, K_APP, ai); return { kind: K_APP, index: ai };
+        }
+        case 54: {
+          var c = []; for (var k = 0; k < 14; k++) c.push(r.f32());
+          var mi = mats.length; mats.push(c); reg(id, K_MAT, mi); return { kind: K_MAT, index: mi };
+        }
+        case 93: {
+          var gi = G.n++; for (var k2 = 0; k2 < 6; k2++) G.box.push(r.f32());
+          r.f64(); r.f64(); r.f64(); r.f32(); r.u32(); G.geom.push(r.u32() - 1);
+          reg(id, K_GEO, gi); return { kind: K_GEO, index: gi };
+        }
+        case 185: {
+          r.skipStr(); r.skipStr(); var nf = r.u32();
+          for (var k3 = 0; k3 < nf; k3++) { r.skipStr(); var emb = r.u32(); if (emb) { r.skipStr(); r.skipStr(); var len = r.u64(); r.p = (r.p + len + 3) & ~3; } else r.u32(); }
+          reg(id, K_OTHER, -1); return { kind: K_OTHER, index: -1 };
+        }
+        default: throw new Error('fragments: unknown class ' + cls + ' at ' + r.p);
+      }
+    }
+    var count = r.u32();
+    for (var i = 0; i < count && r.p + 4 <= buf.length; i++) { if (!ptr()) break; }
+    var nF = F.node.n;
+    // resolve to per-fragment arrays
+    var geom = new Int32Array(nF), node = F.node.done().slice(), xfi = F.xf.done().slice(), mat = new Int32Array(nF), gbox = new Int32Array(nF);
+    for (i = 0; i < nF; i++) {
+      var g = F.geo.a[i]; geom[i] = g >= 0 ? G.geom.a[g] : -1; gbox[i] = g;
+      var a = F.app.a[i]; mat[i] = a >= 0 ? apps[a].mat : -1;
+    }
+    return { count: nF, geom: geom, node: node, xf: xfi, mat: mat, gbox: gbox,
+      xfT: X.t.done(), xfQ: X.q.done(), xfS: X.s.done(), boxes: G.box.done(), materials: mats };
+  }
+
+  /* ------------------------------------------------------------------ logical hierarchy (model tree + properties) */
+  // Compact representation. Node objects are unique; the walk (DFS with shared subtrees expanded) gives
+  // the "path index" used by fragments (fragment.node).
+  function parseHierarchy(buf) {
+    var r = new Reader(buf), dv = r.dv;
+    var strings = [], strIndex = new Map();
+    function sid(s) { if (s === null || s === undefined) return -1; var i = strIndex.get(s); if (i === undefined) { i = strings.length; strings.push(s); strIndex.set(s, i); } return i; }
+    var objKind = new Grow(Int32Array, 1 << 16);   // (index << 4) | kind, by id - 100
+    var K_NODE = 1, K_PAIR = 2, K_PROPS = 3, K_MAT = 4, K_LINK = 5, K_XF = 6, K_OTHER = 7;
+    var N = { name: new Grow(Int32Array, 1 << 16), pair: new Grow(Int32Array, 1 << 16), flags: new Grow(Uint32Array, 1 << 16), cls: new Grow(Uint8Array, 1 << 16),
+      attrStart: new Grow(Int32Array, 1 << 16), attrCount: new Grow(Uint16Array, 1 << 16), childStart: new Grow(Int32Array, 1 << 16), childCount: new Grow(Int32Array, 1 << 16) };
+    var attrList = new Grow(Int32Array, 1 << 16), childList = new Grow(Int32Array, 1 << 16);
+    var pairs = [], props = [], mats = [], links = [], xfs = [];
+    var nextId = 100;
+    function reg(id, v) { var k = id - 100; while (objKind.n <= k) objKind.push(0); objKind.a[k] = v; }
+    function ptr() {
+      var at = r.p, v = r.u32();
+      if (v === 0) return 0;
+      if (v === 1) { var id = r.u32(); return objKind.a[id - 100]; }
+      if (v === 2) { r.u32(); return 0; }   // shared node table reference (not used by the files seen so far)
+      if (v !== nextId) throw new Error('tree: expected object ' + nextId + ', got ' + v + ' at ' + at);
+      nextId++; var cls = r.u32(); return readObject(v, cls);
+    }
+    function value(type) {
+      switch (type) {
+        case 0: return null;
+        case 1: return r.f64();
+        case 2: return r.i32();
+        case 3: return !!r.u32();
+        case 4: return r.str();
+        case 5: return r.f32();
+        case 6: return { len: r.f64() };
+        case 7: return { ang: r.f64() };
+        case 8: { var o = ptr(); return (o & 15) === K_PAIR ? { pair: o >> 4 } : null; }
+        case 10: return { area: r.f64() };
+        case 11: return { vol: r.f64() };
+        default: throw new Error('tree: unknown property type ' + type + ' at ' + r.p);
+      }
+    }
+    function nodeBody(id, cls, pre) {
+      var ni = N.name.push(-1); N.pair.push(-1); N.flags.push(0); N.cls.push(cls); N.attrStart.push(0); N.attrCount.push(0); N.childStart.push(0); N.childCount.push(0);
+      var kv = (ni << 4) | K_NODE; reg(id, kv);
+      if (pre) r.u32();
+      if (cls !== 15 && cls !== 2) {
+        N.name.a[ni] = sid(r.str());
+        var pr = ptr(); N.pair.a[ni] = (pr & 15) === K_PAIR ? pr >> 4 : -1;
+        N.flags.a[ni] = r.u32(); r.u32();
+        var na = r.u32(), at = []; for (var k = 0; k < na; k++) { var a = ptr(); if (a) at.push(a); }
+        N.attrStart.a[ni] = attrList.n; N.attrCount.a[ni] = at.length; for (k = 0; k < at.length; k++) attrList.push(at[k]);
+        if (cls !== 22) {
+          var nc = r.u32(), ch = []; for (k = 0; k < nc; k++) { var c = ptr(); if ((c & 15) === K_NODE) ch.push(c >> 4); }
+          N.childStart.a[ni] = childList.n; N.childCount.a[ni] = ch.length; for (k = 0; k < ch.length; k++) childList.push(ch[k]);
+        }
+      } else {
+        // root: a sequence of partitions; non-pointer words are per-file info blocks we skip
+        var ch2 = [];
+        while (r.p + 4 <= buf.length) {
+          var w = dv.getUint32(r.p, true);
+          if (w === nextId) { var c2 = ptr(); if ((c2 & 15) === K_NODE) ch2.push(c2 >> 4); }
+          else r.p += 4;
+        }
+        N.childStart.a[ni] = childList.n; N.childCount.a[ni] = ch2.length; for (var k4 = 0; k4 < ch2.length; k4++) childList.push(ch2[k4]);
+      }
+      return kv;
+    }
+    function attrHead() { var name = r.str(); ptr(); r.u32(); return name; }
+    function readObject(id, cls) {
+      var v;
+      switch (cls) {
+        case 53: case 22: case 15: case 2: return nodeBody(id, cls, false);
+        case 32: return nodeBody(id, cls, true);
+        case 52: { var pi = pairs.length; pairs.push([sid(r.str()), sid(r.str())]); v = (pi << 4) | K_PAIR; reg(id, v); return v; }
+        case 86: {
+          var pidx = props.length, P = { name: null, cat: -1, items: [] }; props.push(P); v = (pidx << 4) | K_PROPS; reg(id, v);
+          P.name = r.str(); var cp = ptr(); P.cat = (cp & 15) === K_PAIR ? cp >> 4 : -1; r.u32(); var n = r.u32();
+          for (var k = 0; k < n; k++) { var kp = ptr(), type = r.u32(); P.items.push([(kp & 15) === K_PAIR ? kp >> 4 : -1, type, value(type)]); }
+          return v;
+        }
+        case 31: {
+          var mi = mats.length; v = (mi << 4) | K_MAT; reg(id, v);
+          var M = { name: attrHead(), c: [] }; for (var k5 = 0; k5 < 14; k5++) M.c.push(r.f64()); mats.push(M); return v;
+        }
+        case 39: { var xi = xfs.length; v = (xi << 4) | K_XF; reg(id, v); attrHead(); var m = []; for (var k6 = 0; k6 < 12; k6++) m.push(r.f64()); r.u32(); xfs.push({ m: m }); return v; }
+        case 40: { xi = xfs.length; v = (xi << 4) | K_XF; reg(id, v); attrHead(); xfs.push({ t: [r.f64(), r.f64(), r.f64()] }); return v; }
+        case 41: { xi = xfs.length; v = (xi << 4) | K_XF; reg(id, v); attrHead(); xfs.push({ t: [r.f64(), r.f64(), r.f64()], q: [r.f64(), r.f64(), r.f64(), r.f64()] }); return v; }
+        case 79: {
+          var li = links.length; v = (li << 4) | K_LINK; reg(id, v);
+          var L = { name: attrHead(), items: [] }; var nl = r.u32();
+          for (var k7 = 0; k7 < nl; k7++) { var nm = r.str(), url = r.str(); ptr(); r.u32(); L.items.push([nm, url]); }
+          links.push(L); return v;
+        }
+        case 200: { v = K_OTHER; reg(id, v); attrHead(); ptr(); return v; }
+        case 185: {
+          v = K_OTHER; reg(id, v); r.skipStr(); r.skipStr(); var nf = r.u32();
+          for (var k8 = 0; k8 < nf; k8++) { r.skipStr(); var emb = r.u32(); if (emb) { r.skipStr(); r.skipStr(); var len = r.u64(); r.p = (r.p + len + 3) & ~3; } else r.u32(); }
+          return v;
+        }
+        case 28: { v = K_OTHER; reg(id, v); r.u32(); ptr(); for (var k9 = 0; k9 < 7; k9++) r.u32(); for (k9 = 0; k9 < 13; k9++) r.f64(); return v; }
+        default: throw new Error('tree: unknown object class ' + cls + ' at ' + r.p);
+      }
+    }
+    var nParts = r.u32(); for (var i = 0; i < nParts; i++) r.u32();
+    var root = ptr();
+    var nodes = { name: N.name.done(), pair: N.pair.done(), flags: N.flags.done(), cls: N.cls.done(), attrStart: N.attrStart.done(), attrCount: N.attrCount.done(), childStart: N.childStart.done(), childCount: N.childCount.done(), count: N.name.n };
+    // DFS walk with shared subtrees expanded: path index -> node, parent path, subtree end
+    var wNode = new Grow(Int32Array, nodes.count + 1024), wParent = new Grow(Int32Array, nodes.count + 1024), wEnd = new Grow(Int32Array, nodes.count + 1024);
+    var cl = childList.done();
+    var stack = [[root >> 4, -1, 0]];
+    // iterative DFS: entries [node, parentPath, nextChildCursor]; record end when done
+    var rootNode = root >> 4;
+    var pathStack = [];
+    function visit(nodeIdx, parent) { var w = wNode.push(nodeIdx); wParent.push(parent); wEnd.push(0); return w; }
+    var w0 = visit(rootNode, -1); pathStack.push([w0, rootNode, 0]);
+    while (pathStack.length) {
+      var top = pathStack[pathStack.length - 1], ni2 = top[1];
+      if (top[2] < nodes.childCount[ni2]) {
+        var child = cl[nodes.childStart[ni2] + top[2]++];
+        var w = visit(child, top[0]); pathStack.push([w, child, 0]);
+      } else { wEnd.a[top[0]] = wNode.n; pathStack.pop(); }
+    }
+    return { strings: strings, pairs: pairs, props: props, materials: mats, links: links, xfs: xfs, nodes: nodes, attrList: attrList.done(),
+      walk: { node: wNode.done(), parent: wParent.done(), end: wEnd.done(), count: wNode.n },
+      K: { NODE: K_NODE, PAIR: K_PAIR, PROPS: K_PROPS, MAT: K_MAT, LINK: K_LINK, XF: K_XF } };
+  }
+
+  /* ------------------------------------------------------------------ saved viewpoints (structured, newer files) */
+  // Tree of items: [u32 count] then items: [u32 kind][str name][u32 0][16-byte GUID][u32 0]
+  //   kind 4 (folder): [u32 childCount] children...
+  //   kind 0 (view):   [u32 savedFlags][u32 0] f64 pos[3], quat[4], aspect, fov, focal, far, ... sectioning block with 6 planes
+  function parseViewTree(buf) {
+    var dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength), len = buf.length;
+    function strAt(p) { var n = dv.getInt32(p, true); if (n < 0 || n > 400 || p + 4 + n > len) return null; for (var k = 0; k < n; k++) { var c = buf[p + 4 + k]; if (c < 32 && c !== 9) return null; } return { s: TD.decode(buf.subarray(p + 4, p + 4 + n)), end: (p + 4 + n + 3) & ~3 }; }
+    function headerAt(p) {   // returns item header or null
+      if (p + 32 > len) return null;
+      var kind = dv.getUint32(p, true); if (kind !== 0 && kind !== 4) return null;
+      var s = strAt(p + 4); if (!s || !s.s) return null;
+      var q = s.end; if (dv.getUint32(q, true) !== 0 || dv.getUint32(q + 20, true) !== 0) return null;
+      return { kind: kind, name: s.s, after: q + 24 };
+    }
+    function nextHeader(p) { for (var q = (p + 3) & ~3; q + 32 <= len; q += 4) { var h = headerAt(q); if (h && (h.kind === 4 ? dv.getUint32(h.after, true) < 10000 : true)) { if (h.kind === 0 && dv.getUint32(h.after, true) === 0) continue; return q; } } return len; }
+    var p = 0;
+    function item(depth) {
+      var h = headerAt(p); if (!h) throw new Error('viewpoint item expected at ' + p);
+      if (h.kind === 4) {
+        var n = dv.getUint32(h.after, true), node = { name: h.name, folder: true, children: [] }; p = h.after + 4;
+        for (var i = 0; i < n; i++) node.children.push(item(depth + 1));
+        return node;
+      }
+      var flags = dv.getUint32(h.after, true), q = (h.after + 8 + 7) & ~7;
+      var f = function (k) { return dv.getFloat64(q + k * 8, true); };
+      var ortho = dv.getUint32(h.after + 4, true) === 1;
+      var v = { name: h.name, flags: flags, pos: [f(0), f(1), f(2)], quat: [f(3), f(4), f(5), f(6)], aspect: f(7), fov: f(8), focal: f(9), far: f(10), ortho: ortho };
+      if (ortho) { v.orthoHeight = f(8); v.fov = Math.PI / 4; v.focal = 0; }
+      if (!(v.fov > 0.05 && v.fov < 3)) v.fov = Math.PI / 4;
+      var end = nextHeader(q + 88);
+      // sectioning block: [u32 mode][u32 enabled][u32 planeId][u32 0] then per plane [u32 id][pad] f64 point[3] normal[3] axis[3]
+      for (var s = q + 88; s + 96 < end; s += 4) {
+        var a = dv.getUint32(s, true), en = dv.getUint32(s + 4, true), id = dv.getUint32(s + 8, true), z = dv.getUint32(s + 12, true);
+        if (a === 6 && (en === 0 || en === 1) && id >= 1 && id <= 7 && z === 0 && ((s + 16) & 7) === 0) {
+          var b = s + 16, P = [], N = [];
+          for (var k = 0; k < 3; k++) { P.push(dv.getFloat64(b + k * 8, true)); N.push(dv.getFloat64(b + 24 + k * 8, true)); }
+          var nl = Math.hypot(N[0], N[1], N[2]);
+          if (nl > 0.5 && nl < 1.5) v.section = { enabled: en === 1, planes: [{ p: P, n: N }] };
+          break;
+        }
+      }
+      p = end;
+      return v;
+    }
+    var count = dv.getUint32(0, true); if (count < 1 || count > 100000) throw new Error('not a view tree');
+    p = 4; var out = [];
+    for (var i = 0; i < count && p < len; i++) out.push(item(0));
+    var good = 0; (function walk(a) { a.forEach(function (x) { if (x.folder) walk(x.children); else if (Math.abs(x.quat[0] * x.quat[0] + x.quat[1] * x.quat[1] + x.quat[2] * x.quat[2] + x.quat[3] * x.quat[3] - 1) < 1e-4) good++; }); })(out);
+    if (!good) throw new Error('no cameras');
+    return out;
+  }
+
+  /* ------------------------------------------------------------------ saved viewpoints (camera only, fallback) */
+  // Viewpoint entries contain a name, then a camera block: position (3 x f64) followed by a unit quaternion (4 x f64).
+  function parseSavedViews(buf) {
+    var views = [], dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    // find name strings followed (within 256 bytes) by an 8-aligned [pos3][quat4] where quat is unit length
+    for (var p = 0; p + 8 < buf.length; p += 4) {
+      var n = dv.getInt32(p, true);
+      if (n < 1 || n > 200 || p + 4 + n > buf.length) continue;
+      var ok = true; for (var k = 0; k < n; k++) { var c = buf[p + 4 + k]; if (c < 32 && c !== 9) { ok = false; break; } }
+      if (!ok) continue;
+      var name = TD.decode(buf.subarray(p + 4, p + 4 + n)); if (/^\{.*\}$/.test(name) || name.length < 2) continue;
+      for (var q = (p + 4 + n + 7) & ~7; q < p + 400 && q + 64 <= buf.length; q += 8) {
+        var qx = dv.getFloat64(q + 24, true), qy = dv.getFloat64(q + 32, true), qz = dv.getFloat64(q + 40, true), qw = dv.getFloat64(q + 48, true);
+        var L = qx * qx + qy * qy + qz * qz + qw * qw;
+        if (Math.abs(L - 1) < 1e-6 && (qx || qy || qz)) {
+          var px = dv.getFloat64(q, true), py = dv.getFloat64(q + 8, true), pz = dv.getFloat64(q + 16, true);
+          if ([px, py, pz].every(function (v) { return isFinite(v) && Math.abs(v) < 1e9; }) && (px || py || pz)) {
+            var fd = dv.getFloat64(q + 64, true);
+            views.push({ name: name, pos: [px, py, pz], quat: [qx, qy, qz, qw], focal: isFinite(fd) && fd > 0 && fd < 1e7 ? fd : 0 });
+            p = q + 56; break;
+          }
+        }
+      }
+    }
+    return views;
+  }
+
+  return { inflate: inflate, blobSource: blobSource, urlSource: urlSource, openFile: openFile, readSection: readSection, Reader: Reader,
+    openGeometry: openGeometry, fetchRecords: fetchRecords, parseRecord: parseRecord, meshTriangles: meshTriangles, lineSegments: lineSegments,
+    parseFragments: parseFragments, parseHierarchy: parseHierarchy, parseSavedViews: parseSavedViews, parseViewTree: parseViewTree };
+})();
+if (typeof module !== 'undefined') module.exports = NWD;
+
+/* Viewer worker: owns the open file, the model tree, the spatial index and the geometry cache.
+   Concatenated after core.js at build time. Talks to the page through postMessage. */
+'use strict';
+var S = null;              // current model state
+var gen = 0;               // view generation (newer camera requests cancel older work)
+
+function post(type, data, transfer) { data = data || {}; data.type = type; self.postMessage(data, transfer || []); }
+function progress(stage, frac) { post('progress', { stage: stage, frac: frac }); }
+
+self.onmessage = function (e) {
+  var m = e.data;
+  var fn = HANDLERS[m.type];
+  if (!fn) return;
+  Promise.resolve().then(function () { return fn(m); }).then(function (res) {
+    if (m.rid !== undefined) post('reply', { rid: m.rid, result: res }, res && res.__transfer ? res.__transfer : []);
+  }).catch(function (err) {
+    if (m.rid !== undefined) post('reply', { rid: m.rid, error: String(err && err.message || err) });
+    else post('error', { message: String(err && err.stack || err) });
+  });
+};
+
+/* ------------------------------------------------------------------ node classification */
+var T_ROOT = 0, T_FILE = 1, T_LAYER = 2, T_GROUP = 3, T_INSTANCE = 4, T_COMPOSITE = 5, T_GEOMETRY = 6;
+function nodeType(n) {
+  var N = S.H.nodes, cls = N.cls[n], f = N.flags[n];
+  if (cls === 15 || cls === 2) return T_ROOT;
+  if (cls === 32) return T_FILE;
+  if (cls === 22) return T_GEOMETRY;
+  if ((f & 0xc0000) === 0xc0000) return T_GROUP;
+  if (f & 0x80000) return T_LAYER;
+  if (f & 0x40000) return T_INSTANCE;
+  if (f & 0x200000) return T_COMPOSITE;
+  return T_GROUP;
+}
+function str(i) { return i >= 0 ? S.H.strings[i] : ''; }
+function pairUser(pi) { return pi >= 0 ? str(S.H.pairs[pi][0]) : ''; }
+function pairInternal(pi) { return pi >= 0 ? str(S.H.pairs[pi][1]) : ''; }
+function nodeName(n) {
+  var nm = str(S.H.nodes.name[n]);
+  if (nm) return nm;
+  var t = nodeType(n);
+  return pairUser(S.H.nodes.pair[n]) || (t === T_GEOMETRY ? 'Geometry' : 'Unnamed');
+}
+
+/* ------------------------------------------------------------------ open */
+var HANDLERS = {};
+HANDLERS.open = async function (m) {
+  gen++;
+  S = null;
+  var src = m.url ? await NWD.urlSource(m.url) : NWD.blobSource(m.file);
+  progress('Reading file directory', 0);
+  var f = await NWD.openFile(src);
+  var st = { f: f, name: m.url ? src.name : m.file.name, size: src.size, chunkCache: new Map(), meshCache: new Map(), meshBytes: 0, recTris: new Map(),
+    budget: m.budget || 3000000, cacheLimit: m.cacheLimit || 400 * 1048576, cells: [], built: new Map() };
+
+  progress('Reading geometry index', 0.05);
+  st.G = await NWD.openGeometry(f);
+  if (!st.G) throw new Error('This file has no geometry section.');
+
+  progress('Reading objects', 0.1);
+  var fbuf = await NWD.readSection(f, f.section('LcOpNwdFragments'), function (x) { progress('Reading objects', 0.1 + 0.15 * x); });
+  st.F = NWD.parseFragments(fbuf); fbuf = null;
+
+  progress('Reading model tree', 0.3);
+  var hbuf = await NWD.readSection(f, f.section('LcOpNwdLogicalHierarchy'), function (x) { progress('Reading model tree', 0.3 + 0.25 * x); });
+  progress('Building model tree', 0.55);
+  st.H = NWD.parseHierarchy(hbuf); hbuf = null;
+  S = st;
+
+  progress('Indexing objects', 0.75);
+  buildFragmentBounds();
+  buildCells();
+  buildPathIndex();
+
+  var views = [], viewTree = null;
+  try {
+    var sv = f.section('LcOpSavedViewsElement');
+    if (sv) {
+      var vb = await NWD.readSection(f, sv);
+      try { viewTree = NWD.parseViewTree(vb); } catch (e2) { viewTree = null; }
+      if (!viewTree) views = filterViews(NWD.parseSavedViews(vb));
+    }
+  } catch (err) { views = []; }
+
+  // default materials: per fragment colour (rgb + alpha), from fragment appearance or tree material
+  var colors = fragmentColors();
+  progress('Ready', 1);
+  var o = S.origin;
+  return {
+    name: st.name, size: st.size, fragments: S.F.count, records: S.G.nRec, nodes: S.H.nodes.count,
+    origin: [o[0], o[1], o[2]], bbox: Array.from(S.bbox),
+    views: viewTree ? relViews(viewTree, o) : relViews(views, o),
+    hidden: hiddenFragments(),
+    colors: colors, __transfer: [colors.buffer]
+  };
+};
+
+function relViews(list, o) {
+  return list.map(function (v) {
+    if (v.folder) return { name: v.name, folder: true, children: relViews(v.children, o) };
+    var r = { name: v.name, pos: [v.pos[0] - o[0], v.pos[1] - o[1], v.pos[2] - o[2]], quat: v.quat, focal: v.focal || 0, fov: v.fov || 0, ortho: !!v.ortho, orthoHeight: v.orthoHeight || 0 };
+    if (v.section) r.section = { enabled: v.section.enabled, planes: v.section.planes.map(function (pl) { return { p: [pl.p[0] - o[0], pl.p[1] - o[1], pl.p[2] - o[2]], n: pl.n }; }) };
+    return r;
+  });
+}
+var AVATAR = /^(construction_worker|dummy|hardhat|human|office_(fe)?male(_hardhat)?|high_visibility|protective_clothing)\b/i;
+function filterViews(v) {
+  var out = [], seen = new Set();
+  for (var i = 0; i < v.length; i++) {
+    if (AVATAR.test(v[i].name)) continue;
+    var key = v[i].name + '|' + v[i].pos.join(',');
+    if (seen.has(key)) continue; seen.add(key); out.push(v[i]);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ fragment bounds (world, relative to origin) */
+function quatMat(x, y, z, w) {
+  return [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w),
+    2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w),
+    2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)];
+}
+function fragXform(i) {
+  var F = S.F, xi = F.xf[i];
+  if (xi < 0) return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], s: 1, t: [0, 0, 0] };
+  var q = F.xfQ, k = xi * 4;
+  return { m: quatMat(q[k], q[k + 1], q[k + 2], q[k + 3]), s: F.xfS[xi], t: [F.xfT[xi * 3], F.xfT[xi * 3 + 1], F.xfT[xi * 3 + 2]] };
+}
+function buildFragmentBounds() {
+  var F = S.F, n = F.count;
+  var wb = new Float64Array(n * 6), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (var i = 0; i < n; i++) {
+    var g = F.gbox[i], X = fragXform(i), m = X.m, s = X.s, t = X.t;
+    if (g < 0) { for (var a = 0; a < 3; a++) { wb[i * 6 + a] = t[a]; wb[i * 6 + 3 + a] = t[a]; } continue; }
+    var B = F.boxes, b0 = g * 6;
+    var cx = (B[b0] + B[b0 + 3]) / 2 * s, cy = (B[b0 + 1] + B[b0 + 4]) / 2 * s, cz = (B[b0 + 2] + B[b0 + 5]) / 2 * s;
+    var ex = (B[b0 + 3] - B[b0]) / 2 * s, ey = (B[b0 + 4] - B[b0 + 1]) / 2 * s, ez = (B[b0 + 5] - B[b0 + 2]) / 2 * s;
+    for (a = 0; a < 3; a++) {
+      var c = m[a * 3] * cx + m[a * 3 + 1] * cy + m[a * 3 + 2] * cz + t[a];
+      var e = Math.abs(m[a * 3]) * ex + Math.abs(m[a * 3 + 1]) * ey + Math.abs(m[a * 3 + 2]) * ez;
+      wb[i * 6 + a] = c - e; wb[i * 6 + 3 + a] = c + e;
+      if (c - e < lo[a]) lo[a] = c - e; if (c + e > hi[a]) hi[a] = c + e;
+    }
+  }
+  // robust model extents: ignore far-away outliers (e.g. survey points at 0,0,0) using percentiles of centers
+  var cen = [[], [], []];
+  for (i = 0; i < n; i += Math.max(1, (n / 20000) | 0)) for (a = 0; a < 3; a++) cen[a].push((wb[i * 6 + a] + wb[i * 6 + 3 + a]) / 2);
+  var origin = [0, 0, 0];
+  for (a = 0; a < 3; a++) { cen[a].sort(function (x, y) { return x - y; }); origin[a] = cen[a].length ? cen[a][cen[a].length >> 1] : 0; }
+  S.origin = origin;
+  var box = new Float32Array(n * 6), ctr = new Float32Array(n * 3), rad = new Float32Array(n);
+  var bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (i = 0; i < n; i++) {
+    for (a = 0; a < 3; a++) {
+      var l = wb[i * 6 + a] - origin[a], h = wb[i * 6 + 3 + a] - origin[a];
+      box[i * 6 + a] = l; box[i * 6 + 3 + a] = h; ctr[i * 3 + a] = (l + h) / 2;
+    }
+    var dx = box[i * 6 + 3] - box[i * 6], dy = box[i * 6 + 4] - box[i * 6 + 1], dz = box[i * 6 + 5] - box[i * 6 + 2];
+    rad[i] = Math.sqrt(dx * dx + dy * dy + dz * dz) / 2;
+  }
+  // overall bbox from 0.5%..99.5% of centers so a few stray objects don't make "zoom all" useless
+  var q = [[], [], []];
+  for (i = 0; i < n; i += Math.max(1, (n / 50000) | 0)) for (a = 0; a < 3; a++) q[a].push(ctr[i * 3 + a]);
+  for (a = 0; a < 3; a++) {
+    q[a].sort(function (x, y) { return x - y; });
+    var L = q[a].length, p0 = q[a][Math.floor(L * 0.005)], p1 = q[a][Math.min(L - 1, Math.floor(L * 0.995))];
+    bb[a] = p0; bb[a + 3] = p1;
+  }
+  for (i = 0; i < n; i++) {   // grow to fully include objects whose centers are inside the robust box
+    var inside = true; for (a = 0; a < 3; a++) if (ctr[i * 3 + a] < bb[a] || ctr[i * 3 + a] > bb[a + 3]) inside = false;
+    if (inside && rad[i] < 5000) for (a = 0; a < 3; a++) { if (box[i * 6 + a] < bb[a]) bb[a] = box[i * 6 + a]; if (box[i * 6 + 3 + a] > bb[a + 3]) bb[a + 3] = box[i * 6 + 3 + a]; }
+  }
+  S.box = box; S.ctr = ctr; S.rad = rad; S.bbox = bb;
+}
+
+/* ------------------------------------------------------------------ spatial cells (k-d split on centers) */
+var CELL_MAX = 2500;
+function buildCells() {
+  var n = S.F.count, ids = new Int32Array(n);
+  for (var i = 0; i < n; i++) ids[i] = i;
+  var cells = [], ctr = S.ctr, box = S.box;
+  function split(lo, hi, depth) {
+    if (hi - lo <= CELL_MAX || depth > 24) {
+      var c = { id: cells.length, frags: ids.slice(lo, hi), box: [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity] };
+      for (var k = lo; k < hi; k++) { var f = ids[k]; for (var a = 0; a < 3; a++) { if (box[f * 6 + a] < c.box[a]) c.box[a] = box[f * 6 + a]; if (box[f * 6 + 3 + a] > c.box[a + 3]) c.box[a + 3] = box[f * 6 + 3 + a]; } }
+      cells.push(c); return;
+    }
+    var mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+    for (k = lo; k < hi; k++) for (a = 0; a < 3; a++) { var v = ctr[ids[k] * 3 + a]; if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; }
+    var ax = 0; for (a = 1; a < 3; a++) if (mx[a] - mn[a] > mx[ax] - mn[ax]) ax = a;
+    var sub = Array.from(ids.subarray(lo, hi)).sort(function (p, q) { return ctr[p * 3 + ax] - ctr[q * 3 + ax]; });
+    ids.set(sub, lo);
+    var mid = (lo + hi) >> 1;
+    split(lo, mid, depth + 1); split(mid, hi, depth + 1);
+  }
+  split(0, n, 0);
+  S.cells = cells;
+  S.fragCell = new Int32Array(n);
+  for (i = 0; i < cells.length; i++) { var fr = cells[i].frags; for (var j = 0; j < fr.length; j++) S.fragCell[fr[j]] = i; }
+}
+
+/* ------------------------------------------------------------------ path -> fragments index */
+function buildPathIndex() {
+  var n = S.F.count, node = S.F.node, order = new Int32Array(n);
+  for (var i = 0; i < n; i++) order[i] = i;
+  order.sort(function (a, b) { return node[a] - node[b]; });
+  var keys = new Int32Array(n); for (i = 0; i < n; i++) keys[i] = node[order[i]];
+  S.fragOrder = order; S.fragKeys = keys;
+}
+function lowerBound(arr, v) { var lo = 0, hi = arr.length; while (lo < hi) { var mid = (lo + hi) >> 1; if (arr[mid] < v) lo = mid + 1; else hi = mid; } return lo; }
+function fragsOfPath(p) {
+  var W = S.H.walk, a = lowerBound(S.fragKeys, p), b = lowerBound(S.fragKeys, W.end[p]);
+  return S.fragOrder.slice(a, b);
+}
+function hiddenFragments() {
+  // nodes flagged hidden in the file (bit 0x1000000)
+  var N = S.H.nodes, W = S.H.walk, out = [];
+  for (var p = 0; p < W.count; p++) {
+    if (N.flags[W.node[p]] & 0x1000000) { var fr = fragsOfPath(p); for (var k = 0; k < fr.length; k++) out.push(fr[k]); p = W.end[p] - 1; }
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ colours */
+function fragmentColors() {
+  var F = S.F, n = F.count, out = new Uint8Array(n * 4), H = S.H;
+  // fragment appearance material (what Navisworks draws), else the tree material on the geometry node
+  var treeMat = new Int32Array(H.nodes.count).fill(-1);
+  for (var nd = 0; nd < H.nodes.count; nd++) {
+    var s = H.nodes.attrStart[nd], c = H.nodes.attrCount[nd];
+    for (var k = 0; k < c; k++) { var a = H.attrList[s + k]; if ((a & 15) === H.K.MAT) { treeMat[nd] = a >> 4; break; } }
+  }
+  for (var i = 0; i < n; i++) {
+    var r = 0.72, g = 0.72, b = 0.72, t = 0;
+    var tm = treeMat[H.walk.node[F.node[i]]];
+    if (F.mat[i] >= 0) { var C = F.materials[F.mat[i]]; r = C[3]; g = C[4]; b = C[5]; t = C[13]; }
+    else if (tm >= 0) { var M = H.materials[tm].c; r = M[3]; g = M[4]; b = M[5]; t = M[13]; }
+    out[i * 4] = Math.round(Math.min(1, Math.max(0, r)) * 255); out[i * 4 + 1] = Math.round(Math.min(1, Math.max(0, g)) * 255);
+    out[i * 4 + 2] = Math.round(Math.min(1, Math.max(0, b)) * 255); out[i * 4 + 3] = Math.round((1 - Math.min(0.95, Math.max(0, t))) * 255);
+  }
+  S.colors = out.slice();
+  return out;
+}
+
+/* ------------------------------------------------------------------ view-dependent loading */
+var pendingView = null, running = false;
+HANDLERS.view = function (m) {
+  if (!S) return;
+  pendingView = m; gen++;
+  if (!running) runLoader();
+};
+HANDLERS.settings = function (m) {
+  if (!S) return;
+  if (m.budget) S.budget = m.budget;
+  if (m.cacheLimit) S.cacheLimit = m.cacheLimit;
+};
+
+function frustumPlanes(vp) {
+  // vp: column-major 4x4 view-projection matrix (three.js elements)
+  var p = [], e = vp;
+  function plane(a, b, c, d) { var l = Math.sqrt(a * a + b * b + c * c); p.push([a / l, b / l, c / l, d / l]); }
+  plane(e[3] + e[0], e[7] + e[4], e[11] + e[8], e[15] + e[12]);
+  plane(e[3] - e[0], e[7] - e[4], e[11] - e[8], e[15] - e[12]);
+  plane(e[3] + e[1], e[7] + e[5], e[11] + e[9], e[15] + e[13]);
+  plane(e[3] - e[1], e[7] - e[5], e[11] - e[9], e[15] - e[13]);
+  plane(e[3] + e[2], e[7] + e[6], e[11] + e[10], e[15] + e[14]);
+  return p;
+}
+function boxVisible(planes, b) {
+  for (var i = 0; i < planes.length; i++) {
+    var P = planes[i];
+    var x = P[0] > 0 ? b[3] : b[0], y = P[1] > 0 ? b[4] : b[1], z = P[2] > 0 ? b[5] : b[2];
+    if (P[0] * x + P[1] * y + P[2] * z + P[3] < 0) return false;
+  }
+  return true;
+}
+function estTris(rec) {
+  var t = S.recTris.get(rec);
+  return t !== undefined ? t : Math.max(1, S.G.recSize[rec] / 16);
+}
+
+// Decide which fragments to show: in view, big enough on screen, best first, within the triangle budget.
+function chooseFragments(v) {
+  var planes = frustumPlanes(v.vp), cam = v.cam, k = v.projScale, minPx = v.minPx || 1.5;
+  var cand = [], score = [], ctr = S.ctr, rad = S.rad, geom = S.F.geom, box = S.box, clip = v.clip || [];
+  for (var c = 0; c < S.cells.length; c++) {
+    var cell = S.cells[c];
+    if (!boxVisible(planes, cell.box)) continue;
+    var fr = cell.frags;
+    for (var j = 0; j < fr.length; j++) {
+      var f = fr[j]; if (geom[f] < 0) continue;
+      var dx = ctr[f * 3] - cam[0], dy = ctr[f * 3 + 1] - cam[1], dz = ctr[f * 3 + 2] - cam[2];
+      var d = Math.sqrt(dx * dx + dy * dy + dz * dz) - rad[f];
+      var px = rad[f] * k / Math.max(d, 0.1);
+      if (px < minPx) continue;
+      // sphere-vs-frustum
+      var vis = true;
+      for (var pi = 0; pi < 5; pi++) { var P = planes[pi]; if (P[0] * ctr[f * 3] + P[1] * ctr[f * 3 + 1] + P[2] * ctr[f * 3 + 2] + P[3] < -rad[f]) { vis = false; break; } }
+      if (!vis) continue;
+      // section planes: keep fragments whose box reaches the kept side (n.p + c >= 0) of every plane
+      for (var ci = 0; ci < clip.length && vis; ci++) { var C = clip[ci];
+        var bx = C[0] > 0 ? box[f * 6 + 3] : box[f * 6], by = C[1] > 0 ? box[f * 6 + 4] : box[f * 6 + 1], bz = C[2] > 0 ? box[f * 6 + 5] : box[f * 6 + 2];
+        if (C[0] * bx + C[1] * by + C[2] * bz + C[3] < 0) vis = false; }
+      if (!vis) continue;
+      cand.push(f); score.push(px);
+    }
+  }
+  var order = new Int32Array(cand.length); for (var i = 0; i < order.length; i++) order[i] = i;
+  order.sort(function (a, b) { return score[b] - score[a]; });
+  var chosen = [], tris = 0, budget = S.budget;
+  for (i = 0; i < order.length; i++) {
+    var fi = cand[order[i]], t = estTris(geom[fi]);
+    if (tris + t > budget && chosen.length > 0) continue;
+    chosen.push(fi); tris += t;
+    if (tris > budget) break;
+  }
+  return { chosen: chosen, score: score, cand: cand, order: order };
+}
+
+async function runLoader() {
+  running = true;
+  try {
+    while (pendingView) {
+      var v = pendingView, myGen = gen; pendingView = null;
+      var pick = chooseFragments(v);
+      // group by cell
+      var byCell = new Map();
+      for (var i = 0; i < pick.chosen.length; i++) {
+        var f = pick.chosen[i], c = S.fragCell[f], arr = byCell.get(c);
+        if (!arr) { arr = []; byCell.set(c, arr); }
+        arr.push(f);
+      }
+      // cells to (re)build, most important first (order of first appearance in chosen list)
+      var queue = [];
+      byCell.forEach(function (frs, c) {
+        frs.sort(function (a, b) { return a - b; });
+        var built = S.built.get(c);
+        if (!built || needsRebuild(built.frags, frs)) queue.push({ c: c, frs: frs, rank: queue.length });
+      });
+      // order: cells whose top fragment is earliest in priority
+      var rankOf = new Map(); for (i = 0; i < pick.chosen.length; i++) { var cc = S.fragCell[pick.chosen[i]]; if (!rankOf.has(cc)) rankOf.set(cc, i); }
+      queue.sort(function (a, b) { return rankOf.get(a.c) - rankOf.get(b.c); });
+      // drop built cells that are not wanted any more if we are above budget
+      trimBuilt(byCell);
+      post('loading', { pending: queue.length });
+      for (var q = 0; q < queue.length; q++) {
+        if (gen !== myGen && pendingView) break;     // camera moved: re-plan
+        await buildCell(queue[q].c, queue[q].frs);
+        post('loading', { pending: queue.length - q - 1 });
+      }
+      if (!pendingView) post('loading', { pending: 0, done: true });
+    }
+  } catch (err) {
+    post('error', { message: String(err && err.stack || err) });
+  } finally { running = false; }
+}
+function needsRebuild(have, want) {
+  // rebuild when something wanted is missing, or when much more is drawn than wanted
+  var i = 0, j = 0, missing = 0, extra = 0;
+  while (i < have.length || j < want.length) {
+    if (j >= want.length || (i < have.length && have[i] < want[j])) { extra++; i++; }
+    else if (i >= have.length || want[j] < have[i]) { missing++; j++; }
+    else { i++; j++; }
+  }
+  return missing > 0 || extra > Math.max(64, want.length);
+}
+function trimBuilt(wanted) {
+  var total = 0; S.built.forEach(function (b) { total += b.tris; });
+  if (total <= S.budget * 1.4) return;
+  var drop = [];
+  S.built.forEach(function (b, c) { if (!wanted.has(c)) drop.push(c); });
+  for (var i = 0; i < drop.length && total > S.budget * 1.1; i++) {
+    total -= S.built.get(drop[i]).tris; S.built.delete(drop[i]); post('drop', { cell: drop[i] });
+  }
+}
+
+/* ------------------------------------------------------------------ geometry cache + cell meshes */
+function cacheMesh(rec, mesh) {
+  var bytes = mesh.pos.byteLength + mesh.index.byteLength + (mesh.nrm ? mesh.nrm.byteLength : 0) + 64;
+  mesh.bytes = bytes; S.meshCache.set(rec, mesh); S.meshBytes += bytes;
+  if (S.meshBytes > S.cacheLimit) {
+    var it = S.meshCache.keys();
+    while (S.meshBytes > S.cacheLimit * 0.8) { var k = it.next(); if (k.done) break; var old = S.meshCache.get(k.value); S.meshBytes -= old.bytes; S.meshCache.delete(k.value); }
+  }
+  if (S.chunkCache.size > 600) { var ci = S.chunkCache.keys(); while (S.chunkCache.size > 400) S.chunkCache.delete(ci.next().value); }
+}
+async function ensureMeshes(recs) {
+  var need = [];
+  for (var i = 0; i < recs.length; i++) {
+    var r = recs[i]; if (r < 0) continue;
+    var m = S.meshCache.get(r);
+    if (m) { S.meshCache.delete(r); S.meshCache.set(r, m); } else need.push(r);  // LRU touch
+  }
+  if (!need.length) return;
+  need = Array.from(new Set(need));
+  var raw = await NWD.fetchRecords(S.f, S.G, need, S.chunkCache);
+  raw.forEach(function (b, r) {
+    var mesh;
+    try {
+      var rec = NWD.parseRecord(b);
+      if (rec.kind === 94) { mesh = NWD.meshTriangles(rec); mesh.kind = 94; }
+      else if (rec.kind === 95) { mesh = NWD.lineSegments(rec); mesh.kind = 95; mesh.tris = mesh.index.length / 6; }
+      else mesh = { kind: rec.kind, pos: new Float32Array(0), index: new Uint32Array(0), tris: 0 };
+    } catch (err) { mesh = { kind: -1, pos: new Float32Array(0), index: new Uint32Array(0), tris: 0, err: String(err.message) }; }
+    S.recTris.set(r, mesh.tris || 0);
+    cacheMesh(r, mesh);
+  });
+}
+
+async function buildCell(c, frs) {
+  var geom = S.F.geom;
+  var recs = []; for (var i = 0; i < frs.length; i++) recs.push(geom[frs[i]]);
+  await ensureMeshes(recs);
+  var o = S.origin;
+  // count
+  var nv = [0, 0, 0], ni = [0, 0, 0];      // 0 opaque, 1 transparent, 2 lines
+  var list = [];
+  for (i = 0; i < frs.length; i++) {
+    var f = frs[i], mesh = S.meshCache.get(geom[f]); if (!mesh || !mesh.pos.length) continue;
+    var bucket = mesh.kind === 95 ? 2 : (S.colors[f * 4 + 3] < 250 ? 1 : 0);
+    nv[bucket] += mesh.pos.length / 3; ni[bucket] += mesh.index.length; list.push([f, mesh, bucket]);
+  }
+  var out = [], transfer = [];
+  for (var b = 0; b < 3; b++) {
+    if (!ni[b]) { out.push(null); continue; }
+    var P = new Float32Array(nv[b] * 3), N = b < 2 ? new Int8Array(nv[b] * 4) : null, C = new Uint8Array(nv[b] * 4), ID = new Float32Array(nv[b]), I = new Uint32Array(ni[b]);
+    out.push({ pos: P, nrm: N, col: C, fid: ID, index: I, v: 0, i: 0 });
+    transfer.push(P.buffer, C.buffer, ID.buffer, I.buffer); if (N) transfer.push(N.buffer);
+  }
+  var tris = 0;
+  for (i = 0; i < list.length; i++) {
+    f = list[i][0]; mesh = list[i][1]; var B = out[list[i][2]];
+    var X = fragXform(f), m = X.m, s = X.s, tx = X.t[0] - o[0], ty = X.t[1] - o[1], tz = X.t[2] - o[2];
+    var base = B.v, vp = mesh.pos, vn = mesh.nrm, cnt = vp.length / 3;
+    var cr = S.colors[f * 4], cg = S.colors[f * 4 + 1], cb = S.colors[f * 4 + 2], ca = S.colors[f * 4 + 3];
+    for (var k = 0; k < cnt; k++) {
+      var x = vp[k * 3] * s, y = vp[k * 3 + 1] * s, z = vp[k * 3 + 2] * s, d = (base + k) * 3;
+      B.pos[d] = m[0] * x + m[1] * y + m[2] * z + tx;
+      B.pos[d + 1] = m[3] * x + m[4] * y + m[5] * z + ty;
+      B.pos[d + 2] = m[6] * x + m[7] * y + m[8] * z + tz;
+      if (B.nrm && vn) {
+        var nx = vn[k * 3], ny = vn[k * 3 + 1], nz = vn[k * 3 + 2], e = (base + k) * 4;
+        B.nrm[e] = m[0] * nx + m[1] * ny + m[2] * nz; B.nrm[e + 1] = m[3] * nx + m[4] * ny + m[5] * nz; B.nrm[e + 2] = m[6] * nx + m[7] * ny + m[8] * nz;
+      }
+      var q = (base + k) * 4; B.col[q] = cr; B.col[q + 1] = cg; B.col[q + 2] = cb; B.col[q + 3] = ca;
+      B.fid[base + k] = f;
+    }
+    var idx = mesh.index, ii = B.i;
+    for (k = 0; k < idx.length; k++) B.index[ii + k] = idx[k] + base;
+    B.i += idx.length; B.v += cnt;
+    tris += mesh.tris || 0;
+  }
+  S.built.set(c, { frags: frs, tris: tris });
+  post('cell', { cell: c, tris: tris, opaque: strip(out[0]), transparent: strip(out[1]), lines: strip(out[2]) }, transfer);
+}
+function strip(B) { return B ? { pos: B.pos, nrm: B.nrm, col: B.col, fid: B.fid, index: B.index } : null; }
+
+/* ------------------------------------------------------------------ queries from the UI */
+HANDLERS.select = function (m) {
+  // fragment -> path at the requested selection resolution, plus the ancestor chain for the tree
+  var f = m.fid, W = S.H.walk, leaf = S.F.node[f];
+  var chain = []; for (var p = leaf; p >= 0; p = W.parent[p]) chain.unshift(p);
+  var res = m.resolution || 'first', pick = leaf;
+  if (res === 'first' || res === 'last') {
+    var objs = chain.filter(function (q) { var t = nodeType(W.node[q]); return t === T_COMPOSITE || t === T_INSTANCE || t === T_GEOMETRY; });
+    if (objs.length) pick = res === 'first' ? objs[0] : (objs.length > 1 ? objs[objs.length - 2] : objs[0]);
+  } else if (res === 'layer') { for (var i = 0; i < chain.length; i++) if (nodeType(W.node[chain[i]]) === T_LAYER) { pick = chain[i]; break; } }
+  else if (res === 'file') { for (i = 0; i < chain.length; i++) if (nodeType(W.node[chain[i]]) === T_FILE) { pick = chain[i]; break; } }
+  return { path: pick, chain: chain };
+};
+HANDLERS.frags = function (m) {
+  var paths = m.paths, parts = [], total = 0;
+  for (var i = 0; i < paths.length; i++) { var fr = fragsOfPath(paths[i]); parts.push(fr); total += fr.length; }
+  var out = new Int32Array(total), o = 0; for (i = 0; i < parts.length; i++) { out.set(parts[i], o); o += parts[i].length; }
+  return { frags: out, __transfer: [out.buffer] };
+};
+HANDLERS.bbox = function (m) {
+  var fr = m.frags || (m.paths ? HANDLERS.frags(m).frags : []), b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (var i = 0; i < fr.length; i++) { var f = fr[i]; for (var a = 0; a < 3; a++) { if (S.box[f * 6 + a] < b[a]) b[a] = S.box[f * 6 + a]; if (S.box[f * 6 + 3 + a] > b[a + 3]) b[a + 3] = S.box[f * 6 + 3 + a]; } }
+  return b[0] === Infinity ? null : b;
+};
+function nodeInfo(p) {
+  var n = S.H.walk.node[p], t = nodeType(n), W = S.H.walk;
+  return { path: p, name: nodeName(n), type: t, kids: W.end[p] - p > 1, hidden: !!(S.H.nodes.flags[n] & 0x1000000) };
+}
+HANDLERS.children = function (m) {
+  var W = S.H.walk, p = m.path === undefined ? 0 : m.path, out = [];
+  for (var c = p + 1; c < W.end[p]; c = W.end[c]) out.push(nodeInfo(c));
+  // single-file models: skip a lone root level
+  return { path: p, items: out };
+};
+HANDLERS.chainInfo = function (m) { return m.chain.map(nodeInfo); };
+
+// Properties panel: Item tab + every property category attached to the node (Navisworks-style tabs)
+HANDLERS.props = function (m) {
+  var p = m.path, H = S.H, n = H.walk.node[p], N = H.nodes, tabs = [];
+  var item = [['Name', nodeName(n)], ['Type', pairUser(N.pair[n]) || typeName(nodeType(n))], ['Internal Type', pairInternal(N.pair[n])],
+    ['Hidden', N.flags[n] & 0x1000000 ? 'Yes' : 'No']];
+  // source file = nearest file ancestor
+  for (var q = p; q >= 0; q = H.walk.parent[q]) if (nodeType(H.walk.node[q]) === T_FILE) { item.push(['Source File', nodeName(H.walk.node[q])]); break; }
+  var fr = fragsOfPath(p); if (fr.length) item.push(['Geometry Pieces', String(fr.length)]);
+  tabs.push({ name: 'Item', rows: item });
+  // collect attributes along this node and (for geometry) its parent object, like Navisworks shows them on the item
+  var seen = new Set();
+  function addAttrs(node) {
+    var s = N.attrStart[node], c = N.attrCount[node];
+    for (var k = 0; k < c; k++) {
+      var a = H.attrList[s + k], kind = a & 15, idx = a >> 4, key = a;
+      if (seen.has(key)) continue; seen.add(key);
+      if (kind === H.K.PROPS) {
+        var P = H.props[idx], rows = [];
+        for (var j = 0; j < P.items.length; j++) { var it = P.items[j]; rows.push([pairUser(it[0]) || '(property)', fmtValue(it[1], it[2])]); }
+        tabs.push({ name: P.name || pairUser(P.cat) || 'Properties', rows: rows });
+      } else if (kind === H.K.MAT) {
+        var M = H.materials[idx], c3 = M.c;
+        tabs.push({ name: 'Material', rows: [['Name', M.name || ''], ['Diffuse', rgb(c3[3], c3[4], c3[5])], ['Ambient', rgb(c3[0], c3[1], c3[2])], ['Transparency', Math.round(c3[13] * 100) + '%'], ['Shininess', (c3[12] * 100).toFixed(0) + '%']] });
+      } else if (kind === H.K.LINK) {
+        var L = H.links[idx]; tabs.push({ name: 'Hyperlinks', rows: L.items.map(function (x) { return [x[0] || 'Link', { url: x[1] }]; }) });
+      } else if (kind === H.K.XF) {
+        var X = H.xfs[idx];
+        var rowsX = []; if (X.t) rowsX.push(['Translation', X.t.map(fmtLen).join(', ')]);
+        if (X.q) rowsX.push(['Rotation', quatText(X.q)]);
+        if (X.m) rowsX.push(['Matrix', X.m.slice(0, 9).map(function (v) { return v.toFixed(3); }).join(' ')], ['Translation', X.m.slice(9).map(fmtLen).join(', ')]);
+        tabs.push({ name: 'Transform', rows: rowsX });
+      }
+    }
+  }
+  addAttrs(n);
+  if (nodeType(n) === T_GEOMETRY && H.walk.parent[p] >= 0) addAttrs(H.walk.node[H.walk.parent[p]]);
+  return { title: nodeName(n), type: nodeType(n), tabs: tabs };
+};
+function typeName(t) { return ['Root', 'File', 'Layer', 'Group', 'Instance', 'Composite Object', 'Geometry'][t] || 'Item'; }
+function rgb(r, g, b) { return { color: [r, g, b], text: Math.round(r * 255) + ', ' + Math.round(g * 255) + ', ' + Math.round(b * 255) }; }
+function quatText(q) {
+  var w = Math.max(-1, Math.min(1, q[3])), ang = 2 * Math.acos(w) * 180 / Math.PI, s = Math.sqrt(1 - w * w) || 1;
+  return ang.toFixed(2) + '° about (' + (q[0] / s).toFixed(3) + ', ' + (q[1] / s).toFixed(3) + ', ' + (q[2] / s).toFixed(3) + ')';
+}
+function fmtLen(ft) {
+  if (typeof ft !== 'number' || !isFinite(ft)) return String(ft);
+  var neg = ft < 0; ft = Math.abs(ft);
+  var totalIn = Math.round(ft * 12 * 16) / 16, f = Math.floor(totalIn / 12), inch = totalIn - f * 12;
+  var whole = Math.floor(inch), frac = Math.round((inch - whole) * 16), fr = '';
+  if (frac) { var d = 16; while (frac % 2 === 0) { frac /= 2; d /= 2; } fr = ' ' + frac + '/' + d; }
+  return (neg ? '-' : '') + f + "'-" + whole + fr + '"';
+}
+function fmtValue(type, v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (typeof v === 'number') return Number.isInteger(v) ? String(v) : String(+v.toFixed(6));
+  if (typeof v === 'string') return v;
+  if (v.len !== undefined) return fmtLen(v.len);
+  if (v.ang !== undefined) return (v.ang * 180 / Math.PI).toFixed(2) + '°';
+  if (v.area !== undefined) return v.area.toFixed(2) + ' ft²';
+  if (v.vol !== undefined) return v.vol.toFixed(2) + ' ft³';
+  if (v.pair !== undefined) return pairUser(v.pair);
+  return String(v);
+}
+
+// Find items by name (and type) — returns first matches in tree order
+HANDLERS.find = function (m) {
+  var q = String(m.text || '').toLowerCase().trim(); if (!q) return [];
+  var H = S.H, W = H.walk, N = H.nodes, max = m.max || 300, out = [];
+  var hit = new Uint8Array(H.nodes.count);
+  for (var n = 0; n < N.count; n++) {
+    var nm = str(N.name[n]).toLowerCase(), ty = pairUser(N.pair[n]).toLowerCase();
+    if (nm.indexOf(q) >= 0 || ty.indexOf(q) >= 0) hit[n] = 1;
+  }
+  for (var p = 0; p < W.count && out.length < max; p++) {
+    if (hit[W.node[p]]) {
+      var t = nodeType(W.node[p]); if (t === T_ROOT) continue;
+      var info = nodeInfo(p), trail = [];
+      for (var q = W.parent[p]; q > 0; q = W.parent[q]) { var tq = nodeType(W.node[q]); if (tq === T_FILE || tq === T_LAYER) trail.unshift(nodeName(W.node[q])); }
+      info.where = trail.join(' › '); out.push(info); p = W.end[p] - 1;
+    }
+  }
+  return out;
+};
+
+// Precise surface point along a ray for a fragment (used by measure/zoom when depth readback is unavailable)
+HANDLERS.raycast = async function (m) {
+  var f = m.fid, r = S.F.geom[f]; if (r < 0) return null;
+  await ensureMeshes([r]);
+  var mesh = S.meshCache.get(r); if (!mesh || mesh.kind !== 94) return null;
+  var X = fragXform(f), mm = X.m, s = X.s, o = S.origin, t = [X.t[0] - o[0], X.t[1] - o[1], X.t[2] - o[2]];
+  var O = m.origin, D = m.dir, best = Infinity, vp = mesh.pos, I = mesh.index;
+  function w(k, out) { var x = vp[k * 3] * s, y = vp[k * 3 + 1] * s, z = vp[k * 3 + 2] * s; out[0] = mm[0] * x + mm[1] * y + mm[2] * z + t[0]; out[1] = mm[3] * x + mm[4] * y + mm[5] * z + t[1]; out[2] = mm[6] * x + mm[7] * y + mm[8] * z + t[2]; }
+  var A = [0, 0, 0], B = [0, 0, 0], C = [0, 0, 0];
+  for (var i = 0; i < I.length; i += 3) {
+    w(I[i], A); w(I[i + 1], B); w(I[i + 2], C);
+    var e1 = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], e2 = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+    var pv = [D[1] * e2[2] - D[2] * e2[1], D[2] * e2[0] - D[0] * e2[2], D[0] * e2[1] - D[1] * e2[0]];
+    var det = e1[0] * pv[0] + e1[1] * pv[1] + e1[2] * pv[2]; if (Math.abs(det) < 1e-12) continue;
+    var inv = 1 / det, tv = [O[0] - A[0], O[1] - A[1], O[2] - A[2]];
+    var u = (tv[0] * pv[0] + tv[1] * pv[1] + tv[2] * pv[2]) * inv; if (u < 0 || u > 1) continue;
+    var qv = [tv[1] * e1[2] - tv[2] * e1[1], tv[2] * e1[0] - tv[0] * e1[2], tv[0] * e1[1] - tv[1] * e1[0]];
+    var vv = (D[0] * qv[0] + D[1] * qv[1] + D[2] * qv[2]) * inv; if (vv < 0 || u + vv > 1) continue;
+    var tt = (e2[0] * qv[0] + e2[1] * qv[1] + e2[2] * qv[2]) * inv; if (tt > 0 && tt < best) best = tt;
+  }
+  return best === Infinity ? null : [O[0] + D[0] * best, O[1] + D[1] * best, O[2] + D[2] * best];
+};
+
+HANDLERS.stats = function () {
+  if (!S) return null;
+  var t = 0; S.built.forEach(function (b) { t += b.tris; });
+  return { cells: S.cells.length, built: S.built.size, tris: t, cacheMB: Math.round(S.meshBytes / 1048576), records: S.meshCache.size };
+};
+
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+/* =================================================================== helpers */
+const $ = id => document.getElementById(id);
+const isTouch = matchMedia('(pointer: coarse)').matches;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('amv.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('amv.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.classList.remove('hidden'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), ms); }
+function fmtLen(ft) {
+  if (!isFinite(ft)) return '—';
+  const neg = ft < 0; ft = Math.abs(ft);
+  const totalIn = Math.round(ft * 12 * 16) / 16; let f = Math.floor(totalIn / 12), inch = totalIn - f * 12;
+  let whole = Math.floor(inch), frac = Math.round((inch - whole) * 16), fr = '';
+  if (frac === 16) { whole++; frac = 0; } if (whole === 12) { f++; whole = 0; }
+  if (frac) { let d = 16; while (frac % 2 === 0) { frac /= 2; d /= 2; } fr = ' ' + frac + '/' + d; }
+  return (neg ? '-' : '') + f + "'-" + whole + fr + '"';
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* =================================================================== worker */
+const worker = new Worker(URL.createObjectURL(new Blob([$('worker-src').textContent], { type: 'text/javascript' })));
+let rid = 0; const pending = new Map();
+function call(type, data = {}, transfer = []) {
+  return new Promise((res, rej) => { const id = ++rid; pending.set(id, { res, rej }); worker.postMessage(Object.assign({}, data, { type, rid: id }), transfer); });
+}
+worker.onmessage = e => {
+  const m = e.data;
+  switch (m.type) {
+    case 'reply': { const p = pending.get(m.rid); pending.delete(m.rid); if (!p) return; m.error ? p.rej(new Error(m.error)) : p.res(m.result); break; }
+    case 'progress': $('loadStage').textContent = m.stage; $('loadBar').style.width = Math.round(m.frac * 100) + '%'; break;
+    case 'cell': addCell(m); break;
+    case 'drop': dropCell(m.cell); break;
+    case 'loading': loadingCells = m.pending; updateStatus(); $('busy').classList.toggle('hidden', !m.pending); break;
+    case 'error': console.error(m.message); toast('Problem: ' + String(m.message).split('\n')[0], 5000); break;
+  }
+};
+
+/* =================================================================== renderer */
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+renderer.localClippingEnabled = false;
+renderer.clippingPlanes = [];
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1e5);
+camera.up.set(0, 0, 1);
+scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8f96, 1.1));
+const head = new THREE.DirectionalLight(0xffffff, 1.6); head.position.set(0.3, 0.6, 1); camera.add(head); camera.add(head.target);
+const model = new THREE.Group(); scene.add(model);
+const overlay = new THREE.Group(); scene.add(overlay);
+
+let needsRender = true;
+function requestRender() { needsRender = true; }
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+  requestRender(); sendView();
+}
+new ResizeObserver(resize).observe(canvas);
+
+function setBackground(kind) {
+  const bg = { grad: 'linear-gradient(#3d5268,#9fb0c0)', dark: '#1b2633', light: '#d9e0e7', white: '#ffffff' }[kind] || 'linear-gradient(#3d5268,#9fb0c0)';
+  $('stage').style.background = bg; renderer.setClearColor(0x000000, 0); requestRender();
+}
+
+/* --------------------------------------------------- per-fragment state texture (hidden / selected / colour override) */
+const SW = 2048;
+const U = { uState: { value: null }, uStateW: { value: SW }, uSelColor: { value: new THREE.Color(0x2f80ff) } };
+let stateData = null, stateTex = null, fragCount = 0;
+function initState(n) {
+  fragCount = n; const h = Math.max(1, Math.ceil(n / SW));
+  stateData = new Uint8Array(SW * h * 4);
+  stateTex = new THREE.DataTexture(stateData, SW, h, THREE.RGBAFormat, THREE.UnsignedByteType);
+  stateTex.magFilter = stateTex.minFilter = THREE.NearestFilter; stateTex.needsUpdate = true;
+  U.uState.value = stateTex;
+}
+function setFlag(frags, bit, on) { for (let i = 0; i < frags.length; i++) { const k = frags[i] * 4; stateData[k] = on ? stateData[k] | bit : stateData[k] & ~bit; } stateTex.needsUpdate = true; requestRender(); }
+function clearFlag(bit) { for (let k = 0; k < stateData.length; k += 4) stateData[k] &= ~bit; stateTex.needsUpdate = true; requestRender(); }
+
+const VERT_DECL = `
+attribute float fid;
+uniform highp sampler2D uState; uniform float uStateW;
+varying float vFlags; varying vec3 vOv;`;
+const VERT_STATE = `
+{ ivec2 sc = ivec2(int(mod(fid, uStateW)), int(floor(fid / uStateW)));
+  vec4 st = texelFetch(uState, sc, 0); vFlags = floor(st.r * 255.0 + 0.5); vOv = st.gba; }`;
+const VERT_HIDE = `
+if (mod(vFlags, 2.0) >= 1.0) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);`;
+const FRAG_DECL = `
+varying float vFlags; varying vec3 vOv; uniform vec3 uSelColor;`;
+const FRAG_COLOR = `
+if (mod(floor(vFlags / 4.0), 2.0) >= 1.0) diffuseColor.rgb = vOv;
+if (mod(floor(vFlags / 2.0), 2.0) >= 1.0) diffuseColor.rgb = mix(diffuseColor.rgb, uSelColor, 0.7);`;
+function patch(mat) {
+  mat.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + VERT_DECL)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>' + VERT_STATE)
+      .replace('#include <project_vertex>', '#include <project_vertex>' + VERT_HIDE);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + FRAG_DECL)
+      .replace('#include <color_fragment>', '#include <color_fragment>' + FRAG_COLOR);
+  };
+  return mat;
+}
+const MAT = {
+  opaque: patch(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })),
+  transparent: patch(new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, depthWrite: false })),
+  lines: patch(new THREE.LineBasicMaterial({ vertexColors: true })),
+};
+const pickMat = new THREE.ShaderMaterial({
+  uniforms: Object.assign({ uMode: { value: 0 }, uFar: { value: 1e5 } }, U), side: THREE.DoubleSide, clipping: true,
+  vertexShader: `#include <common>
+#include <clipping_planes_pars_vertex>
+attribute float fid; uniform highp sampler2D uState; uniform float uStateW; varying float vId; varying float vHide; varying float vViewZ;
+void main() {
+  ivec2 sc = ivec2(int(mod(fid, uStateW)), int(floor(fid / uStateW)));
+  vHide = mod(floor(texelFetch(uState, sc, 0).r * 255.0 + 0.5), 2.0); vId = fid;
+  #include <begin_vertex>
+  #include <project_vertex>
+  #include <clipping_planes_vertex>
+  vViewZ = -mvPosition.z;
+}`,
+  fragmentShader: `#include <common>
+#include <packing>
+#include <clipping_planes_pars_fragment>
+varying float vId; varying float vHide; varying float vViewZ; uniform int uMode; uniform float uFar;
+void main() {
+  #include <clipping_planes_fragment>
+  if (vHide > 0.5) discard;
+  if (uMode == 0) { float id = vId + 1.0; gl_FragColor = vec4(mod(id, 256.0) / 255.0, mod(floor(id / 256.0), 256.0) / 255.0, floor(id / 65536.0) / 255.0, 1.0); }
+  else gl_FragColor = packDepthToRGBA(clamp(vViewZ / uFar, 0.0, 0.999999));
+}` });
+
+/* --------------------------------------------------- cells (merged meshes streamed from the worker) */
+const cells = new Map();
+let loadingCells = 0, shownTris = 0, showLines = store.get('lines', true), wire = false;
+function geomFrom(b, lines) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(b.pos, 3));
+  if (b.nrm) g.setAttribute('normal', new THREE.InterleavedBufferAttribute(new THREE.InterleavedBuffer(b.nrm, 4), 3, 0, true));
+  g.setAttribute('color', new THREE.BufferAttribute(b.col, 4, true));
+  g.setAttribute('fid', new THREE.BufferAttribute(b.fid, 1));
+  g.setIndex(new THREE.BufferAttribute(b.index, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+function addCell(m) {
+  dropCell(m.cell, true);
+  const objs = [];
+  if (m.opaque) objs.push(new THREE.Mesh(geomFrom(m.opaque), MAT.opaque));
+  if (m.transparent) { const t = new THREE.Mesh(geomFrom(m.transparent), MAT.transparent); t.renderOrder = 2; objs.push(t); }
+  if (m.lines) { const l = new THREE.LineSegments(geomFrom(m.lines, true), MAT.lines); l.visible = showLines; l.userData.lines = true; objs.push(l); }
+  for (const o of objs) { o.matrixAutoUpdate = false; o.frustumCulled = true; model.add(o); }
+  cells.set(m.cell, { objs, tris: m.tris });
+  shownTris += m.tris; updateStatus(); requestRender();
+}
+function dropCell(c, silent) {
+  const e = cells.get(c); if (!e) return;
+  for (const o of e.objs) { model.remove(o); o.geometry.dispose(); }
+  shownTris -= e.tris; cells.delete(c);
+  if (!silent) { updateStatus(); requestRender(); }
+}
+function clearModel() { for (const c of Array.from(cells.keys())) dropCell(c, true); shownTris = 0; clearOverlay(); }
+
+/* --------------------------------------------------- picking (GPU id + depth at one pixel) */
+const pickRT = new THREE.WebGLRenderTarget(1, 1);
+const pickBuf = new Uint8Array(4);
+function pickAt(x, y) {
+  // x, y in CSS pixels relative to canvas
+  if (!cells.size) return null;
+  const r = canvas.getBoundingClientRect(), dpr = renderer.getPixelRatio();
+  const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr), px = Math.round(x * dpr), py = Math.round(y * dpr);
+  camera.setViewOffset(W, H, px, py, 1, 1);
+  const prevOverride = scene.overrideMaterial, prevBg = scene.background;
+  scene.overrideMaterial = pickMat; overlay.visible = false;
+  for (const e of cells.values()) for (const o of e.objs) if (o.userData.lines && !showLines) o.visible = false;
+  renderer.setRenderTarget(pickRT);
+  const cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
+  renderer.setClearColor(0x000000, 0);
+  pickMat.uniforms.uMode.value = 0; renderer.clear(); renderer.render(scene, camera);
+  renderer.readRenderTargetPixels(pickRT, 0, 0, 1, 1, pickBuf);
+  const id = pickBuf[0] + pickBuf[1] * 256 + pickBuf[2] * 65536 - 1;
+  let point = null;
+  if (id >= 0) {
+    pickMat.uniforms.uMode.value = 1; pickMat.uniforms.uFar.value = camera.far; renderer.setClearColor(0xffffff, 1); renderer.clear(); renderer.render(scene, camera);
+    renderer.readRenderTargetPixels(pickRT, 0, 0, 1, 1, pickBuf);
+    // unpackRGBAToDepth (three.js packing) -> linear view depth
+    const viewZ = (255 / 256) * (pickBuf[0] / 255 / 16777216 + pickBuf[1] / 255 / 65536 + pickBuf[2] / 255 / 256 + pickBuf[3] / 255) * camera.far;
+    camera.clearViewOffset();
+    const ray = new THREE.Vector3(x / r.width * 2 - 1, -(y / r.height) * 2 + 1, 0.5).unproject(camera).sub(camera.position).normalize();
+    const fwd = camera.getWorldDirection(new THREE.Vector3());
+    point = camera.position.clone().addScaledVector(ray, viewZ / Math.max(1e-6, ray.dot(fwd)));
+  } else camera.clearViewOffset();
+  renderer.setRenderTarget(null); renderer.setClearColor(cc, ca);
+  scene.overrideMaterial = prevOverride; scene.background = prevBg; overlay.visible = true;
+  requestRender();
+  return id >= 0 ? { fid: id, point } : null;
+}
+
+/* =================================================================== model state */
+let M = null;                 // opened model summary from worker
+let selected = { paths: [], frags: new Int32Array(0) };
+let hiddenFrags = new Set();
+let resolution = store.get('res', 'first');
+
+async function openFile(file) {
+  if (!file) return;
+  const isUrl = typeof file === 'string';
+  $('welcome').classList.add('hidden'); $('loader').classList.remove('hidden');
+  $('loadDetail').textContent = isUrl ? file : file.name + ' — ' + (file.size / 1048576).toFixed(0) + ' MB';
+  clearModel(); M = null;
+  try {
+    const budget = +store.get('budget', isTouch ? 2500000 : 5000000);
+    const info = await call('open', { file: isUrl ? null : file, url: isUrl ? new URL(file, location.href).href : null, budget, cacheLimit: isTouch ? 350 * 1048576 : 900 * 1048576 });
+    M = info;
+    initState(info.fragments);
+    hiddenFrags = new Set(info.hidden); if (info.hidden.length) setFlag(info.hidden, 1, true);
+    $('fileLabel').textContent = info.name + ' · ' + info.fragments.toLocaleString() + ' objects';
+    document.title = info.name + ' — Adman Model Viewer';
+    $('loader').classList.add('hidden');
+    ['tools', 'status', 'cube'].forEach(id => $(id).classList.toggle('hidden', id === 'status' ? !store.get('stats', false) : false));
+    setupTree(); renderViews(); selectPaths([]);
+    const v0 = firstView(info.views, /^(3d main|home|3d view|3d)/i) || firstView(info.views, /3d/i);
+    fitAll(false);
+    if (v0) goView(v0, false);
+    if (!isTouch) { $('left').classList.remove('hidden'); }
+  } catch (err) {
+    console.error(err);
+    $('loader').classList.add('hidden'); $('welcome').classList.remove('hidden');
+    toast('Could not open file: ' + err.message, 7000);
+  }
+}
+
+/* =================================================================== camera / navigation */
+const nav = {
+  tool: 'orbit', pivot: new THREE.Vector3(), anim: null,
+  speed: +store.get('walkSpeed', 35),
+};
+function sceneRadius() { if (!M) return 100; const b = M.bbox; return Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2 || 100; }
+function updateClip() {
+  const R = sceneRadius(), d = camera.position.distanceTo(nav.pivot);
+  camera.near = Math.max(0.02, Math.min(d * 0.02, R * 0.001));
+  camera.far = Math.max(R * 8, d + R * 4);
+  camera.updateProjectionMatrix();
+}
+let viewTimer = 0;
+function sendView() {
+  if (!M) return;
+  clearTimeout(viewTimer);
+  viewTimer = setTimeout(() => {
+    camera.updateMatrixWorld();
+    const vp = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    const h = canvas.clientHeight || 600;
+    worker.postMessage({ type: 'view', vp: Array.from(vp.elements), cam: camera.position.toArray(), projScale: h / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)), minPx: isTouch ? 2 : 1.5,
+      clip: renderer.clippingPlanes.map(p => [p.normal.x, p.normal.y, p.normal.z, p.constant]) });
+  }, 120);
+}
+function cameraChanged() { updateClip(); requestRender(); sendView(); positionLabels(); }
+
+function lookAtDir(dir, target, dist, animate = true) {
+  const pos = target.clone().addScaledVector(dir.clone().normalize(), -dist);
+  const up = Math.abs(dir.clone().normalize().z) > 0.999 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+  const m = new THREE.Matrix4().lookAt(pos, target, up);
+  const q = new THREE.Quaternion().setFromRotationMatrix(m);
+  flyTo(pos, q, target, animate);
+}
+function flyTo(pos, quat, pivot, animate = true) {
+  nav.pivot.copy(pivot);
+  if (!animate) { camera.position.copy(pos); camera.quaternion.copy(quat); cameraChanged(); return; }
+  const p0 = camera.position.clone(), q0 = camera.quaternion.clone(), t0 = performance.now(), T = 550;
+  nav.anim = () => {
+    const k = Math.min(1, (performance.now() - t0) / T), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    camera.position.lerpVectors(p0, pos, e); camera.quaternion.slerpQuaternions(q0, quat, e);
+    cameraChanged();
+    if (k >= 1) nav.anim = null;
+  };
+}
+function frameBox(b, animate = true, dir) {
+  if (!b) return;
+  const c = new THREE.Vector3((b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2);
+  const r = Math.max(0.5, Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2);
+  const dist = r / Math.sin(THREE.MathUtils.degToRad(camera.fov) / 2) * 1.05;
+  const d = dir || camera.getWorldDirection(new THREE.Vector3());
+  lookAtDir(d, c, dist, animate);
+}
+function fitAll(animate = true) { if (M) frameBox(M.bbox, animate, animate ? undefined : new THREE.Vector3(1, 1, -0.8)); }
+async function fitSelection() {
+  if (!selected.frags.length) { toast('Select something first'); return; }
+  frameBox(await call('bbox', { frags: selected.frags }));
+}
+function goView(v, animate = true) {
+  const q = new THREE.Quaternion(v.quat[0], v.quat[1], v.quat[2], v.quat[3]);
+  let pos = new THREE.Vector3(...v.pos);
+  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+  let fov = v.fov > 0.05 && v.fov < 3 ? THREE.MathUtils.radToDeg(v.fov) : 45;
+  fov = THREE.MathUtils.clamp(fov, 20, 90);
+  let focal = v.focal > 1 ? v.focal : 0;
+  if (v.ortho && v.orthoHeight > 0) {   // orthographic view: show the same height with a perspective camera pulled back
+    fov = 30; const dist = v.orthoHeight / 2 / Math.tan(THREE.MathUtils.degToRad(fov / 2));
+    pos = pos.clone().addScaledVector(fwd, -dist); focal = dist;
+  }
+  if (Math.abs(camera.fov - fov) > 0.1) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  const pivot = pos.clone().addScaledVector(fwd, focal || sceneRadius() * 0.25);
+  flyTo(pos, q, pivot, animate);
+  // sectioning saved with the viewpoint
+  if (v.section) {
+    if (v.section.enabled && v.section.planes.length) {
+      const pl = v.section.planes[0], n = new THREE.Vector3(...pl.n).normalize();
+      sec.mode = 'view'; sec.viewPlane = new THREE.Plane(n, -n.dot(new THREE.Vector3(...pl.p)));
+    } else if (sec.mode === 'view' || sec.mode === 'plane' || sec.mode === 'box') sec.mode = 'off';
+    syncSectionUI(); applySection();
+  }
+  if (!focal) setTimeout(() => { const r = canvas.getBoundingClientRect(), h = pickAt(r.width / 2, r.height / 2); if (h) nav.pivot.copy(h.point); }, animate ? 700 : 50);
+}
+const DIRS = { top: [0, 0, -1], bottom: [0, 0, 1], front: [0, 1, 0], back: [0, -1, 0], left: [1, 0, 0], right: [-1, 0, 0], iso: [-1, 1, -0.8] };
+function viewDir(name) {
+  if (!M) return;
+  const dist = camera.position.distanceTo(nav.pivot) || sceneRadius() * 2;
+  lookAtDir(new THREE.Vector3(...DIRS[name]), nav.pivot.clone(), dist);
+}
+
+// ---- primitive camera moves
+const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion();
+function orbit(dx, dy) {
+  const Z = new THREE.Vector3(0, 0, 1), angX = -dx * 0.006, angY = -dy * 0.006;
+  const off = camera.position.clone().sub(nav.pivot);
+  tmpQ.setFromAxisAngle(Z, angX); off.applyQuaternion(tmpQ); camera.quaternion.premultiply(tmpQ);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  const fwd = camera.getWorldDirection(new THREE.Vector3());
+  const pitch = Math.asin(THREE.MathUtils.clamp(fwd.z, -1, 1));
+  const np = THREE.MathUtils.clamp(pitch + angY, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+  tmpQ.setFromAxisAngle(right, -(np - pitch)); off.applyQuaternion(tmpQ); camera.quaternion.premultiply(tmpQ);
+  camera.position.copy(nav.pivot).add(off);
+  cameraChanged();
+}
+function look(dx, dy) {
+  tmpQ.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -dx * 0.004); camera.quaternion.premultiply(tmpQ);
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), fwd = camera.getWorldDirection(new THREE.Vector3());
+  const pitch = Math.asin(THREE.MathUtils.clamp(fwd.z, -1, 1)), np = THREE.MathUtils.clamp(pitch - dy * 0.004, -1.5, 1.5);
+  tmpQ.setFromAxisAngle(right, np - pitch); camera.quaternion.premultiply(tmpQ);
+  nav.pivot.copy(camera.position).addScaledVector(camera.getWorldDirection(new THREE.Vector3()), Math.max(1, camera.position.distanceTo(nav.pivot)));
+  cameraChanged();
+}
+function panPixels(dx, dy, depthPoint) {
+  // keep the grabbed point under the finger
+  const ref = depthPoint || nav.pivot;
+  const dist = Math.max(0.05, camera.getWorldDirection(new THREE.Vector3()).dot(tmpV.copy(ref).sub(camera.position)));
+  const h = canvas.clientHeight, k = 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / h;
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  const mv = right.multiplyScalar(-dx * k).add(up.multiplyScalar(dy * k));
+  camera.position.add(mv); nav.pivot.add(mv);
+  cameraChanged();
+}
+function dollyTo(point, factor) {
+  // move camera toward point by factor of the distance (factor > 0 zooms in)
+  const target = point || nav.pivot;
+  const d = camera.position.distanceTo(target);
+  const step = THREE.MathUtils.clamp(factor, -2, 0.9) * d;
+  const dir = target.clone().sub(camera.position).normalize();
+  if (d - step < camera.near * 2 && factor > 0) {  // push through when very close
+    camera.position.addScaledVector(dir, Math.max(step, sceneRadius() * 0.01));
+  } else camera.position.addScaledVector(dir, step);
+  if (point) nav.pivot.copy(point);
+  cameraChanged();
+}
+function walkStep(fwd, turn, strafe, rise, dt) {
+  const base = sceneRadius() * 0.004 * Math.pow(1.06, nav.speed - 35) * 60;
+  const dir = camera.getWorldDirection(new THREE.Vector3()); dir.z = 0; if (dir.lengthSq() < 1e-6) dir.set(0, 1, 0); dir.normalize();
+  const right = new THREE.Vector3(dir.y, -dir.x, 0);
+  const mv = dir.multiplyScalar(fwd * base * dt).add(right.multiplyScalar(strafe * base * dt)); mv.z += rise * base * dt;
+  camera.position.add(mv);
+  if (turn) { tmpQ.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -turn * dt * 1.6); camera.quaternion.premultiply(tmpQ); }
+  nav.pivot.copy(camera.position).addScaledVector(camera.getWorldDirection(new THREE.Vector3()), 10);
+  cameraChanged();
+}
+
+/* --------------------------------------------------- pointer handling (mouse + touch, Navisworks-style) */
+function ex(e) { return e.clientX - canvas.getBoundingClientRect().left; }
+function ey(e) { return e.clientY - canvas.getBoundingClientRect().top; }
+const ptrs = new Map(); let gesture = null, lastTap = { t: 0, x: 0, y: 0 }, longTimer = 0;
+canvas.addEventListener('pointerdown', e => {
+  try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+  ptrs.set(e.pointerId, { x: ex(e), y: ey(e), sx: ex(e), sy: ey(e), b: e.button });
+  hideCtx();
+  nav.anim = null;
+  if (ptrs.size === 1) {
+    const p = ptrs.get(e.pointerId);
+    gesture = { kind: 'one', moved: false, t0: performance.now(), grab: null, button: e.button };
+    // middle / right mouse = pan; shift+left = pan
+    if (e.pointerType === 'mouse' && (e.button === 1 || e.button === 2 || e.shiftKey)) gesture.forcePan = true;
+    const tool = gesture.forcePan ? 'pan' : nav.tool;
+    if (tool === 'orbit' || tool === 'pan' || tool === 'zoom') {
+      const hit = pickAt(p.x, p.y);
+      if (hit) { gesture.grab = hit.point; if (tool === 'orbit') { nav.pivot.copy(hit.point); showPivot(true); } }
+    }
+    clearTimeout(longTimer);
+    if (e.pointerType !== 'mouse') longTimer = setTimeout(() => { if (gesture && !gesture.moved && ptrs.size === 1) { gesture.long = true; contextAt(p.x, p.y); } }, 550);
+  } else if (ptrs.size === 2) {
+    clearTimeout(longTimer);
+    const [a, b] = Array.from(ptrs.values());
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const hit = pickAt(mx, my);
+    gesture = { kind: 'two', moved: true, d0: Math.hypot(a.x - b.x, a.y - b.y), mx, my, grab: hit ? hit.point : null };
+  }
+});
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = ex(e) - p.x, dy = ey(e) - p.y; p.x = ex(e); p.y = ey(e);
+  if (!gesture) return;
+  if (gesture.kind === 'one') {
+    if (!gesture.moved && Math.hypot(p.x - p.sx, p.y - p.sy) < (e.pointerType === 'mouse' ? 3 : 8)) return;
+    gesture.moved = true; clearTimeout(longTimer);
+    const tool = gesture.forcePan ? 'pan' : nav.tool;
+    if (tool === 'orbit' || tool === 'measure') orbit(dx, dy);
+    else if (tool === 'pan') panPixels(dx, dy, gesture.grab);
+    else if (tool === 'zoom') dollyTo(gesture.grab, -dy * 0.01);
+    else if (tool === 'look') look(dx, dy);
+    else if (tool === 'walk') { walkDrag.fwd = -(p.y - p.sy) / 80; walkDrag.turn = (p.x - p.sx) / 120; startWalkLoop(); }
+  } else if (gesture.kind === 'two' && ptrs.size === 2) {
+    const [a, b] = Array.from(ptrs.values());
+    const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    if (nav.tool === 'walk') { walkDrag.strafe = (mx - gesture.mx) / 120; walkDrag.rise = -(my - gesture.my) / 120; startWalkLoop(); }
+    else {
+      panPixels(mx - gesture.mx, my - gesture.my, gesture.grab);
+      if (gesture.d0 > 0) dollyTo(gesture.grab, (d / gesture.d0 - 1) * 1.2);
+      gesture.mx = mx; gesture.my = my;
+    }
+    gesture.d0 = d;
+  }
+});
+function endPointer(e) {
+  const p = ptrs.get(e.pointerId); ptrs.delete(e.pointerId);
+  clearTimeout(longTimer);
+  if (!gesture) return;
+  if (gesture.kind === 'one' && p && !gesture.moved && !gesture.long && ptrs.size === 0) {
+    const now = performance.now();
+    if (now - lastTap.t < 320 && Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30) { focusAt(p.x, p.y); lastTap.t = 0; }
+    else { lastTap = { t: now, x: p.x, y: p.y }; tapAt(p.x, p.y, e); }
+  }
+  if (ptrs.size === 0) { gesture = null; showPivot(false); walkDrag.fwd = walkDrag.turn = walkDrag.strafe = walkDrag.rise = 0; }
+  else if (ptrs.size === 1) { const q = Array.from(ptrs.values())[0]; q.sx = q.x; q.sy = q.y; gesture = { kind: 'one', moved: true, grab: null }; }
+}
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+// iOS Safari: stop pinch from zooming the page and double-tap from scrolling
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); contextAt(ex(e), ey(e)); });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault(); if (!M) return;
+  const hit = pickAt(ex(e), ey(e));
+  const dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+  dollyTo(hit ? hit.point : null, -Math.sign(dy) * Math.min(0.4, Math.abs(dy) / 300));
+}, { passive: false });
+
+// walk loop (touch drag / keys)
+const walkDrag = { fwd: 0, turn: 0, strafe: 0, rise: 0 }, keys = new Set();
+let walkLoop = 0, walkLast = 0;
+function startWalkLoop() {
+  if (walkLoop) return;
+  walkLast = performance.now();
+  const step = () => {
+    const now = performance.now(), dt = Math.min(0.1, (now - walkLast) / 1000); walkLast = now;
+    let f = walkDrag.fwd, t = walkDrag.turn, s = walkDrag.strafe, r = walkDrag.rise;
+    if (keys.has('w') || keys.has('arrowup')) f += 1; if (keys.has('s') || keys.has('arrowdown')) f -= 1;
+    if (keys.has('a')) s -= 1; if (keys.has('d')) s += 1; if (keys.has('arrowleft')) t -= 1; if (keys.has('arrowright')) t += 1;
+    if (keys.has('e')) r += 1; if (keys.has('q')) r -= 1;
+    if (f || t || s || r) { walkStep(f, t, s, r, dt); walkLoop = requestAnimationFrame(step); } else walkLoop = 0;
+  };
+  walkLoop = requestAnimationFrame(step);
+}
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase();
+  if ('wasdqe'.includes(k) && k.length === 1 || k.startsWith('arrow')) { keys.add(k); startWalkLoop(); e.preventDefault(); return; }
+  if (k === 'escape') { selectPaths([]); hideCtx(); }
+  else if (k === 'h') act('hide'); else if (k === 'i') act('isolate'); else if (k === 'u') act('unhide');
+  else if (k === 'f') act('fitsel'); else if (k === 'home') act('fit');
+});
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+/* --------------------------------------------------- pivot marker + measurement overlay */
+const pivotMark = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: 0x22c55e, depthTest: false, transparent: true, opacity: 0.85 }));
+pivotMark.renderOrder = 10; pivotMark.visible = false; overlay.add(pivotMark);
+function showPivot(on) {
+  pivotMark.visible = on && nav.tool === 'orbit';
+  if (on) { pivotMark.position.copy(nav.pivot); const d = camera.position.distanceTo(nav.pivot); pivotMark.scale.setScalar(d * 0.008); }
+  requestRender();
+}
+const measure = { pts: [], marks: [], line: null, labelEl: null };
+function clearOverlay() {
+  for (const m of measure.marks) overlay.remove(m); if (measure.line) overlay.remove(measure.line);
+  measure.pts = []; measure.marks = []; measure.line = null;
+  document.querySelectorAll('.mlabel').forEach(n => n.remove()); measure.labelEl = null;
+  $('measureOut').textContent = 'Tap two points on the model.'; requestRender();
+}
+function addMeasurePoint(pt) {
+  if (measure.pts.length >= 2) clearOverlay();
+  measure.pts.push(pt.clone());
+  const s = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ color: 0xbd1d23, depthTest: false }));
+  s.position.copy(pt); s.renderOrder = 11; s.scale.setScalar(camera.position.distanceTo(pt) * 0.006); overlay.add(s); measure.marks.push(s);
+  if (measure.pts.length === 2) {
+    const [a, b] = measure.pts;
+    const g = new THREE.BufferGeometry().setFromPoints([a, b]);
+    measure.line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xbd1d23, depthTest: false })); measure.line.renderOrder = 11; overlay.add(measure.line);
+    const d = a.distanceTo(b), dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y), dz = Math.abs(b.z - a.z);
+    $('measureOut').innerHTML = `<b>${fmtLen(d)}</b><br>ΔX ${fmtLen(dx)} · ΔY ${fmtLen(dy)} · ΔZ ${fmtLen(dz)}<br><span class="muted">Horizontal ${fmtLen(Math.hypot(dx, dy))}</span>`;
+    const el = document.createElement('div'); el.className = 'mlabel'; el.textContent = fmtLen(d); $('stage').appendChild(el); measure.labelEl = el;
+    positionLabels();
+  } else $('measureOut').textContent = 'Tap the second point.';
+  requestRender();
+}
+function positionLabels() {
+  if (!measure.labelEl || measure.pts.length < 2) return;
+  const mid = measure.pts[0].clone().add(measure.pts[1]).multiplyScalar(0.5).project(camera);
+  const r = canvas.getBoundingClientRect();
+  measure.labelEl.style.left = ((mid.x + 1) / 2 * r.width) + 'px'; measure.labelEl.style.top = ((1 - mid.y) / 2 * r.height) + 'px';
+  measure.labelEl.style.display = mid.z < 1 ? '' : 'none';
+  for (const m of measure.marks) m.scale.setScalar(camera.position.distanceTo(m.position) * 0.006);
+}
+
+/* --------------------------------------------------- tap actions */
+async function tapAt(x, y, e) {
+  const hit = pickAt(x, y);
+  if (nav.tool === 'measure') { if (hit) addMeasurePoint(hit.point); return; }
+  if (!hit) { if (!(e && (e.ctrlKey || e.metaKey))) selectPaths([]); return; }
+  const r = await call('select', { fid: hit.fid, resolution });
+  const add = e && (e.ctrlKey || e.metaKey);
+  if (add) {
+    const has = selected.paths.includes(r.path);
+    selectPaths(has ? selected.paths.filter(p => p !== r.path) : selected.paths.concat([r.path]), r.chain);
+  } else selectPaths([r.path], r.chain);
+}
+async function focusAt(x, y) {
+  const hit = pickAt(x, y); if (!hit) return;
+  const dir = camera.getWorldDirection(new THREE.Vector3());
+  const dist = camera.position.distanceTo(hit.point);
+  lookAtDir(dir.lengthSq() ? hit.point.clone().sub(camera.position).normalize() : dir, hit.point, Math.max(dist * 0.6, 1));
+}
+function hideCtx() { $('ctx').classList.add('hidden'); }
+async function contextAt(x, y) {
+  const hit = pickAt(x, y);
+  if (hit) { const r = await call('select', { fid: hit.fid, resolution }); if (!selected.paths.includes(r.path)) selectPaths([r.path], r.chain); }
+  const items = selected.paths.length ? [['Zoom to selection', 'fitsel'], ['Hide', 'hide'], ['Hide unselected', 'isolate'], ['Properties', 'props'], ['Select in tree', 'reveal']] : [];
+  items.push(['Unhide all', 'unhide'], ['Zoom all', 'fit']);
+  const c = $('ctx'); c.innerHTML = items.map(([t, a]) => `<button data-a="${a}">${t}</button>`).join('');
+  c.style.left = Math.min(x, canvas.clientWidth - 200) + 'px'; c.style.top = Math.min(y, canvas.clientHeight - items.length * 46) + 'px';
+  c.classList.remove('hidden');
+}
+$('ctx').addEventListener('click', e => { const a = e.target.dataset.a; hideCtx(); if (a === 'props') showPanel('right', true); else if (a === 'reveal') { showPanel('left', true); revealInTree(); } else if (a) act(a); });
+
+/* --------------------------------------------------- selection */
+let lastChain = null;
+async function selectPaths(paths, chain) {
+  if (selected.frags.length) setFlag(selected.frags, 2, false);
+  selected = { paths, frags: new Int32Array(0) };
+  if (chain) lastChain = chain;
+  if (paths.length) {
+    const r = await call('frags', { paths });
+    if (selected.paths !== paths) return;
+    selected.frags = r.frags; setFlag(r.frags, 2, true);
+    showProps(paths[paths.length - 1]);
+  } else showProps(null);
+  markTreeSelection();
+  requestRender();
+}
+
+/* =================================================================== tools & actions */
+function setTool(t) {
+  nav.tool = t;
+  document.querySelectorAll('#tools [data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+  $('measureBox').classList.toggle('hidden', t !== 'measure');
+  $('walkBox').classList.toggle('hidden', t !== 'walk');
+  if (t !== 'measure') clearOverlay();
+}
+async function act(a) {
+  if (!M) return;
+  if (a === 'fit') fitAll();
+  else if (a === 'fitsel') fitSelection();
+  else if (a === 'cube') $('cube').classList.toggle('hidden');
+  else if (a === 'hide') { if (!selected.frags.length) return toast('Select something to hide'); for (const f of selected.frags) hiddenFrags.add(f); setFlag(selected.frags, 1, true); const s = selected.frags; selectPaths([]); toast('Hidden ' + s.length.toLocaleString() + ' pieces'); refreshTreeEyes(); }
+  else if (a === 'isolate') {
+    if (!selected.frags.length) return toast('Select what to keep visible');
+    for (let k = 0; k < stateData.length; k += 4) stateData[k] |= 1;
+    hiddenFrags = new Set(); for (let i = 0; i < fragCount; i++) hiddenFrags.add(i);
+    for (const f of selected.frags) { stateData[f * 4] &= ~1; hiddenFrags.delete(f); }
+    stateTex.needsUpdate = true; requestRender(); refreshTreeEyes();
+  }
+  else if (a === 'unhide') { clearFlag(1); hiddenFrags.clear(); refreshTreeEyes(); }
+  else if (a === 'section') $('sectionBox').classList.toggle('hidden');
+  else if (a === 'render') { wire = !wire; MAT.opaque.wireframe = MAT.transparent.wireframe = wire; requestRender(); toast(wire ? 'Wireframe' : 'Shaded'); }
+  else if (a === 'settings') $('settings').classList.remove('hidden');
+}
+document.querySelectorAll('#tools [data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+document.querySelectorAll('#tools [data-act]').forEach(b => b.addEventListener('click', () => act(b.dataset.act)));
+document.querySelectorAll('#cube [data-v]').forEach(b => b.addEventListener('click', () => viewDir(b.dataset.v)));
+document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => { $(b.dataset.close).classList.add('hidden'); if (b.dataset.close === 'measureBox' || b.dataset.close === 'walkBox') setTool('orbit'); }));
+$('measureClear').onclick = clearOverlay;
+$('walkSpeed').value = nav.speed; $('walkSpeed').oninput = e => { nav.speed = +e.target.value; store.set('walkSpeed', nav.speed); };
+
+/* --------------------------------------------------- sectioning */
+const sec = { mode: 'off', axis: 'top', pos: 0.7, box: [0, 0, 0, 1, 1, 1], viewPlane: null };
+function syncSectionUI() {
+  document.querySelectorAll('#secMode button').forEach(b => b.classList.toggle('on', b.dataset.m === sec.mode || (sec.mode === 'view' && b.dataset.m === 'plane')));
+  $('secPlane').classList.toggle('hidden', sec.mode !== 'plane'); $('secBox').classList.toggle('hidden', sec.mode !== 'box');
+}
+function applySection() {
+  const planes = [];
+  if (M && sec.mode === 'view' && sec.viewPlane) planes.push(sec.viewPlane.clone());
+  else if (M && sec.mode !== 'off') {
+    const b = M.bbox, lerp = (i, t) => b[i] + (b[i + 3] - b[i]) * t;
+    if (sec.mode === 'plane') {
+      const A = { top: [0, 0, -1, 2], bottom: [0, 0, 1, 2], front: [0, 1, 0, 1], back: [0, -1, 0, 1], left: [1, 0, 0, 0], right: [-1, 0, 0, 0] }[sec.axis];
+      const n = new THREE.Vector3(A[0], A[1], A[2]), v = lerp(A[3], (A[0] + A[1] + A[2]) < 0 ? sec.pos : 1 - sec.pos);
+      planes.push(new THREE.Plane(n, -n.getComponent(A[3]) * v));
+    } else {
+      for (let i = 0; i < 3; i++) {
+        const lo = lerp(i, sec.box[i]), hi = lerp(i, sec.box[i + 3]);
+        const n1 = new THREE.Vector3().setComponent(i, 1), n2 = new THREE.Vector3().setComponent(i, -1);
+        planes.push(new THREE.Plane(n1, -lo), new THREE.Plane(n2, hi));
+      }
+    }
+  }
+  renderer.clippingPlanes = planes; requestRender(); sendView();
+}
+$('secMode').addEventListener('click', e => { const m = e.target.dataset.m; if (!m) return; sec.mode = m; document.querySelectorAll('#secMode button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('secPlane').classList.toggle('hidden', m !== 'plane'); $('secBox').classList.toggle('hidden', m !== 'box'); applySection(); });
+$('secAxis').addEventListener('click', e => { const a = e.target.dataset.a; if (!a) return; sec.axis = a; document.querySelectorAll('#secAxis button').forEach(b => b.classList.toggle('on', b.dataset.a === a)); applySection(); });
+$('secPos').oninput = e => { sec.pos = e.target.value / 1000; applySection(); };
+document.querySelectorAll('#secBox .bx').forEach(r => r.oninput = () => { sec.box[+r.dataset.i] = r.value / 1000; applySection(); });
+$('secFit').onclick = async () => {
+  if (!selected.frags.length) return toast('Select something first');
+  const b = await call('bbox', { frags: selected.frags }), B = M.bbox, pad = 0.02;
+  for (let i = 0; i < 3; i++) { const s = B[i + 3] - B[i]; sec.box[i] = Math.max(0, (b[i] - B[i]) / s - pad); sec.box[i + 3] = Math.min(1, (b[i + 3] - B[i]) / s + pad); }
+  document.querySelectorAll('#secBox .bx').forEach(r => r.value = Math.round(sec.box[+r.dataset.i] * 1000));
+  applySection();
+};
+
+/* =================================================================== panels */
+function showPanel(side, on) {
+  const el = $(side), open = on === undefined ? el.classList.contains('hidden') : on;
+  el.classList.toggle('hidden', !open);
+  if (isTouch && open) $(side === 'left' ? 'right' : 'left').classList.add('hidden');
+}
+$('btnPanelLeft').onclick = () => showPanel('left');
+$('btnPanelRight').onclick = () => showPanel('right');
+document.querySelectorAll('#left .tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#left .tabs button').forEach(x => x.classList.toggle('on', x === b));
+  ['tree', 'views', 'find'].forEach(t => $('tab-' + t).classList.toggle('hidden', t !== b.dataset.tab));
+  if (b.dataset.tab === 'find') setTimeout(() => $('findText').focus(), 50);
+});
+
+/* --------------------------------------------------- selection tree (lazy) */
+const TYPE_LABEL = ['', 'F', 'L', 'G', 'I', 'C', '▲'];
+const treeEls = new Map();   // path -> row element
+function treeRow(it, depth) {
+  const row = document.createElement('div'); row.className = 'tn' + (it.hidden ? ' hid' : ''); row.dataset.path = it.path; row.style.paddingLeft = (depth * 14) + 'px';
+  row.innerHTML = `<button class="tw">${it.kids ? '<svg viewBox="0 0 10 10"><path d="M3 1l5 4-5 4z"/></svg>' : ''}</button><span class="ic t${it.type}">${TYPE_LABEL[it.type] || ''}</span><span class="lb">${esc(it.name)}</span><button class="eye" title="Hide / unhide"><svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
+  row.dataset.depth = depth; row.dataset.kids = it.kids ? 1 : 0;
+  treeEls.set(it.path, row);
+  return row;
+}
+async function expand(row, open) {
+  const p = +row.dataset.path, depth = +row.dataset.depth;
+  let box = row.nextElementSibling && row.nextElementSibling.classList.contains('tkids') ? row.nextElementSibling : null;
+  if (open === undefined) open = !row.classList.contains('open');
+  if (!open) { row.classList.remove('open'); if (box) box.remove(); return; }
+  if (row.dataset.kids !== '1') return;
+  row.classList.add('open');
+  if (box) return;
+  box = document.createElement('div'); box.className = 'tkids'; row.after(box);
+  const r = await call('children', { path: p });
+  let shown = 0;
+  const addMore = () => {
+    const frag = document.createDocumentFragment();
+    for (let i = shown; i < Math.min(r.items.length, shown + 400); i++) frag.appendChild(treeRow(r.items[i], depth + 1));
+    shown = Math.min(r.items.length, shown + 400);
+    box.appendChild(frag);
+    if (shown < r.items.length) { const m = document.createElement('div'); m.className = 'more'; m.textContent = `Show more (${(r.items.length - shown).toLocaleString()} left)…`; m.onclick = () => { m.remove(); addMore(); }; box.appendChild(m); }
+  };
+  addMore(); markTreeSelection(); refreshTreeEyes();
+}
+async function setupTree() {
+  const t = $('tree'); t.innerHTML = ''; treeEls.clear();
+  const r = await call('children', { path: 0 });
+  let items = r.items;
+  const frag = document.createDocumentFragment();
+  for (const it of items) frag.appendChild(treeRow(it, 0));
+  t.appendChild(frag);
+  if (items.length === 1) expand(treeEls.get(items[0].path), true);
+}
+$('tree').addEventListener('click', async e => {
+  const row = e.target.closest('.tn'); if (!row) return;
+  const p = +row.dataset.path;
+  if (e.target.closest('.tw')) { expand(row); return; }
+  if (e.target.closest('.eye')) {
+    const r = await call('frags', { paths: [p] });
+    const allHidden = r.frags.length && Array.from(r.frags).every(f => hiddenFrags.has(f));
+    for (const f of r.frags) allHidden ? hiddenFrags.delete(f) : hiddenFrags.add(f);
+    setFlag(r.frags, 1, !allHidden); refreshTreeEyes(); return;
+  }
+  const add = e.ctrlKey || e.metaKey;
+  selectPaths(add ? selected.paths.concat([p]) : [p]);
+});
+$('tree').addEventListener('dblclick', async e => { const row = e.target.closest('.tn'); if (!row) return; await selectPaths([+row.dataset.path]); fitSelection(); });
+function markTreeSelection() {
+  treeEls.forEach((el, p) => el.classList.toggle('sel', selected.paths.includes(p)));
+}
+let eyeTimer = 0;
+function refreshTreeEyes() {
+  clearTimeout(eyeTimer);
+  eyeTimer = setTimeout(async () => {
+    const paths = Array.from(treeEls.keys()).filter(p => treeEls.get(p).isConnected);
+    for (const p of paths.slice(0, 600)) {
+      const r = await call('frags', { paths: [p] });
+      const hid = r.frags.length > 0 && Array.from(r.frags).every(f => hiddenFrags.has(f));
+      treeEls.get(p).classList.toggle('hid', hid);
+    }
+  }, 150);
+}
+async function revealInTree() {
+  if (!lastChain) return;
+  document.querySelector('#left .tabs button[data-tab=tree]').click();
+  for (let i = 1; i < lastChain.length; i++) {
+    const row = treeEls.get(lastChain[i]);
+    if (!row) continue;
+    if (i < lastChain.length - 1 && selected.paths.includes(lastChain[i])) { row.scrollIntoView({ block: 'center' }); break; }
+    if (!selected.paths.includes(lastChain[i])) await expand(row, true);
+    else { row.scrollIntoView({ block: 'center' }); break; }
+  }
+  markTreeSelection();
+}
+
+/* --------------------------------------------------- properties */
+let propTab = 0;
+async function showProps(path) {
+  if (path === null || path === undefined) { $('propTitle').textContent = 'Properties'; $('propType').textContent = ''; $('propTabs').innerHTML = ''; $('propBody').innerHTML = '<div class="muted small pad">Tap an item in the model or the tree to see its properties.</div>'; return; }
+  const r = await call('props', { path });
+  $('propTitle').textContent = r.title; $('propType').textContent = r.tabs[0] && r.tabs[0].rows[1] ? r.tabs[0].rows[1][1] : '';
+  if (propTab >= r.tabs.length) propTab = 0;
+  const draw = () => {
+    $('propTabs').innerHTML = r.tabs.map((t, i) => `<button data-i="${i}" class="${i === propTab ? 'on' : ''}">${esc(t.name)}</button>`).join('');
+    const rows = (r.tabs[propTab] || { rows: [] }).rows;
+    $('propBody').innerHTML = '<table class="ptable">' + rows.map(([k, v]) => {
+      let val;
+      if (v && typeof v === 'object' && v.url) val = `<a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(v.url)}</a>`;
+      else if (v && typeof v === 'object' && v.color) val = `<span class="swatch" style="background:rgb(${v.color.map(c => Math.round(c * 255)).join(',')})"></span>${esc(v.text)}`;
+      else val = esc(v);
+      return `<tr><td>${esc(k)}</td><td>${val}</td></tr>`;
+    }).join('') + '</table>';
+  };
+  draw();
+  $('propTabs').onclick = e => { const i = e.target.dataset.i; if (i !== undefined) { propTab = +i; draw(); } };
+}
+
+/* --------------------------------------------------- viewpoints */
+function savedViews() { return M ? store.get('views:' + M.name, []) : []; }
+// Viewpoints panel: the file's folder tree (Navisworks "Saved Viewpoints") followed by views saved on this device.
+function renderViews() {
+  const own = savedViews(), flat = [];
+  let html = '';
+  const walk = (list, depth) => {
+    for (const v of list) {
+      const i = flat.length; flat.push(v);
+      if (v.folder) {
+        html += `<div class="it vf" data-i="${i}" style="padding-left:${12 + depth * 16}px"><span class="ic t3">▸</span><span class="nm"><b>${esc(v.name)}</b></span><span class="muted small">${countViews(v.children) || ''}</span></div><div class="vkids hidden" data-k="${i}">`;
+        walk(v.children, depth + 1); html += '</div>';
+      } else {
+        html += `<div class="it" data-i="${i}" style="padding-left:${12 + depth * 16}px"><span class="ic t${v.own ? 5 : 1}">${v.own ? '★' : 'V'}</span><span class="nm">${esc(v.name)}</span>${v.section && v.section.enabled ? '<span class="muted small">§</span>' : ''}${v.own ? '<button class="del" title="Delete">×</button>' : ''}</div>`;
+      }
+    }
+  };
+  walk(M ? M.views : [], 0);
+  if (own.length) { html += '<div class="sec-h pad" style="margin:0"><span class="n">★</span> SAVED ON THIS DEVICE</div>'; walk(own.map(v => Object.assign({ own: true }, v)), 0); }
+  $('viewList').innerHTML = html || '<div class="muted small pad">No saved viewpoints in this file.</div>';
+  $('viewList').onclick = e => {
+    const it = e.target.closest('.it'); if (!it) return; const v = flat[+it.dataset.i];
+    if (v.folder) { const box = $('viewList').querySelector(`.vkids[data-k="${it.dataset.i}"]`); box.classList.toggle('hidden'); it.querySelector('.ic').textContent = box.classList.contains('hidden') ? '▸' : '▾'; return; }
+    if (e.target.classList.contains('del')) { store.set('views:' + M.name, savedViews().filter(x => x.name !== v.name || x.pos.join() !== v.pos.join())); renderViews(); return; }
+    $('viewList').querySelectorAll('.it.on').forEach(x => x.classList.remove('on')); it.classList.add('on');
+    goView(v); if (isTouch) showPanel('left', false);
+  };
+}
+function countViews(list) { let n = 0; for (const v of list) n += v.folder ? countViews(v.children) : 1; return n; }
+function firstView(list, re) { for (const v of list) { if (v.folder) { const r = firstView(v.children, re); if (r) return r; } else if (!re || re.test(v.name)) return v; } return null; }
+$('btnSaveView').onclick = () => {
+  if (!M) return;
+  const name = prompt('Name this viewpoint', 'View ' + (savedViews().length + 1)); if (!name) return;
+  const v = { name, pos: camera.position.toArray(), quat: camera.quaternion.toArray(), focal: camera.position.distanceTo(nav.pivot) };
+  store.set('views:' + M.name, savedViews().concat([v])); renderViews(); toast('Viewpoint saved on this device');
+};
+
+/* --------------------------------------------------- find */
+let findTimer = 0;
+$('findText').addEventListener('input', () => {
+  clearTimeout(findTimer);
+  findTimer = setTimeout(async () => {
+    const q = $('findText').value; if (!M || q.trim().length < 2) { $('findList').innerHTML = ''; $('findInfo').textContent = ''; return; }
+    const res = await call('find', { text: q, max: 300 });
+    $('findInfo').textContent = res.length >= 300 ? 'First 300 matches' : res.length + ' match' + (res.length === 1 ? '' : 'es');
+    $('findList').innerHTML = res.map(it => `<div class="it" data-p="${it.path}"><span class="ic t${it.type}">${TYPE_LABEL[it.type] || ''}</span><span class="nm">${esc(it.name)}<span class="sub">${esc(it.where || '')}</span></span></div>`).join('');
+  }, 250);
+});
+$('findList').onclick = async e => { const it = e.target.closest('.it'); if (!it) return; await selectPaths([+it.dataset.p]); fitSelection(); };
+
+/* --------------------------------------------------- settings */
+$('setBudget').value = String(store.get('budget', isTouch ? 2500000 : 5000000));
+$('setRes').value = resolution;
+$('setBg').value = store.get('bg', 'grad');
+$('setLines').checked = showLines;
+$('setStats').checked = store.get('stats', false);
+$('setBudget').onchange = e => { store.set('budget', +e.target.value); worker.postMessage({ type: 'settings', budget: +e.target.value }); sendView(); };
+$('setRes').onchange = e => { resolution = e.target.value; store.set('res', resolution); };
+$('setBg').onchange = e => { store.set('bg', e.target.value); setBackground(e.target.value); };
+$('setLines').onchange = e => { showLines = e.target.checked; store.set('lines', showLines); for (const c of cells.values()) for (const o of c.objs) if (o.userData.lines) o.visible = showLines; requestRender(); };
+$('setStats').onchange = e => { store.set('stats', e.target.checked); $('status').classList.toggle('hidden', !e.target.checked || !M); };
+$('settings').addEventListener('click', e => { if (e.target.id === 'settings') $('settings').classList.add('hidden'); });
+setBackground(store.get('bg', 'grad'));
+
+/* --------------------------------------------------- status */
+let fps = 0, frames = 0, fpsT = performance.now();
+function updateStatus() {
+  if ($('status').classList.contains('hidden')) return;
+  $('status').textContent = `${(shownTris / 1e6).toFixed(2)}M tris · ${cells.size} cells${loadingCells ? ' · loading ' + loadingCells : ''} · ${fps} fps`;
+}
+
+/* --------------------------------------------------- open file UI */
+$('btnOpen').onclick = $('btnOpen2').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => { const f = e.target.files[0]; e.target.value = ''; openFile(f); };
+addEventListener('dragover', e => { e.preventDefault(); });
+addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+if (isTouch) $('dropHint').classList.add('hidden');
+
+/* =================================================================== render loop */
+function loop() {
+  requestAnimationFrame(loop);
+  if (nav.anim) nav.anim();
+  if (!needsRender) return;
+  needsRender = false;
+  renderer.render(scene, camera);
+  frames++;
+  const now = performance.now(); if (now - fpsT > 1000) { fps = Math.round(frames * 1000 / (now - fpsT)); frames = 0; fpsT = now; updateStatus(); }
+}
+resize(); loop();
+{ const q = new URLSearchParams(location.search).get('url'); if (q) openFile(q); }
+window.__viewer = { THREE, scene, camera, renderer, call, openFile, act, setTool, goView, pickAt, get M() { return M; }, cells };
+
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
