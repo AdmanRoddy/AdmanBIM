@@ -64,7 +64,9 @@ HANDLERS.open = async function (m) {
   progress('Reading model tree', 0.3);
   var hbuf = await NWD.readSection(f, f.section('LcOpNwdLogicalHierarchy'), function (x) { progress('Reading model tree', 0.3 + 0.25 * x); });
   progress('Building model tree', 0.55);
-  st.H = NWD.parseHierarchy(hbuf); hbuf = null;
+  try { st.H = NWD.parseHierarchy(hbuf); st.treeError = null; }
+  catch (err) { st.H = stubHierarchy(st.F); st.treeError = String(err.message || err); }
+  hbuf = null;
   S = st;
 
   progress('Indexing objects', 0.75);
@@ -87,7 +89,7 @@ HANDLERS.open = async function (m) {
   progress('Ready', 1);
   var o = S.origin;
   return {
-    name: st.name, size: st.size, fragments: S.F.count, records: S.G.nRec, nodes: S.H.nodes.count,
+    name: st.name, size: st.size, fragments: S.F.count, treeError: st.treeError, records: S.G.nRec, nodes: S.H.nodes.count,
     origin: [o[0], o[1], o[2]], bbox: Array.from(S.bbox),
     views: viewTree ? relViews(viewTree, o) : relViews(views, o),
     hidden: hiddenFragments(),
@@ -102,6 +104,17 @@ function relViews(list, o) {
     if (v.section) r.section = { enabled: v.section.enabled, planes: v.section.planes.map(function (pl) { return { p: [pl.p[0] - o[0], pl.p[1] - o[1], pl.p[2] - o[2]], n: pl.n }; }) };
     return r;
   });
+}
+// Fallback when the model tree cannot be read: one flat list of geometry items so the model still opens.
+function stubHierarchy(F) {
+  var max = 0; for (var i = 0; i < F.count; i++) if (F.node[i] > max) max = F.node[i];
+  var n = max + 1, node = new Int32Array(n), parent = new Int32Array(n), end = new Int32Array(n);
+  for (var p = 1; p < n; p++) { node[p] = 1; parent[p] = 0; end[p] = p + 1; }
+  node[0] = 0; parent[0] = -1; end[0] = n;
+  return { strings: ['Model', 'Item'], pairs: [], props: [], materials: [], links: [], xfs: [], attrList: new Int32Array(0),
+    nodes: { name: Int32Array.from([0, 1]), pair: Int32Array.from([-1, -1]), flags: new Uint32Array(2), cls: Uint8Array.from([15, 22]),
+      attrStart: new Int32Array(2), attrCount: new Uint16Array(2), childStart: new Int32Array(2), childCount: new Int32Array(2), count: 2 },
+    walk: { node: node, parent: parent, end: end, count: n }, K: { NODE: 1, PAIR: 2, PROPS: 3, MAT: 4, LINK: 5, XF: 6 } };
 }
 var AVATAR = /^(construction_worker|dummy|hardhat|human|office_(fe)?male(_hardhat)?|high_visibility|protective_clothing)\b/i;
 function filterViews(v) {
@@ -123,8 +136,7 @@ function quatMat(x, y, z, w) {
 function fragXform(i) {
   var F = S.F, xi = F.xf[i];
   if (xi < 0) return { m: [1, 0, 0, 0, 1, 0, 0, 0, 1], s: 1, t: [0, 0, 0] };
-  var q = F.xfQ, k = xi * 4;
-  return { m: quatMat(q[k], q[k + 1], q[k + 2], q[k + 3]), s: F.xfS[xi], t: [F.xfT[xi * 3], F.xfT[xi * 3 + 1], F.xfT[xi * 3 + 2]] };
+  return { m: Array.prototype.slice.call(F.xfM, xi * 9, xi * 9 + 9), s: 1, t: [F.xfT[xi * 3], F.xfT[xi * 3 + 1], F.xfT[xi * 3 + 2]] };
 }
 function buildFragmentBounds() {
   var F = S.F, n = F.count;

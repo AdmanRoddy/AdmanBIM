@@ -97,6 +97,7 @@ and orthographic viewpoints (shown with a matching perspective camera).
 | `build.mjs` | `node build.mjs` — rebuilds `index.html` after editing `src/` |
 | `tools/` | Development tools: format test harness, dev server with sample models, icon generator |
 
-Development: `node tools/devserver.mjs 8770`, then open `http://localhost:8770/?url=/models/sample.nwd`
-(edit the model paths at the top of `tools/devserver.mjs`). `node tools/test-core.cjs <file.nwd>`
-checks the file reader against a model from the command line.
+Development: list a few local models in `tools/models.local.json` (kept out of git), e.g.
+`{ "sample.nwd": "C:/Models/Sample.nwd" }`, run `node tools/devserver.mjs 8770` and open
+`http://localhost:8770/?url=/models/sample.nwd`. `node tools/test-core.cjs <file.nwd>` checks the file reader from the
+command line, and `node tools/batch.cjs list.txt` runs it over a list of files.

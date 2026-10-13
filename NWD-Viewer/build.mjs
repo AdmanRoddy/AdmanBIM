@@ -1,7 +1,8 @@
+import { fileURLToPath } from 'url';
 // Builds the single-file app: src/* -> index.html   (node build.mjs)
 import fs from 'fs';
 import path from 'path';
-const dir = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+const dir = path.dirname(fileURLToPath(import.meta.url));
 const read = f => fs.readFileSync(path.join(dir, 'src', f), 'utf8');
 const parts = { CSS: read('style.css'), CORE: read('core.js'), WORKER: read('worker.js'), APP: read('app.js') };
 for (const [k, v] of Object.entries(parts)) if (/<\/script/i.test(v)) throw new Error(k + ' contains </script>');

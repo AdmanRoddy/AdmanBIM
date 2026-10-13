@@ -406,13 +406,18 @@ var NWD = (function () {
   Grow.prototype.push = function (v) { if (this.n >= this.a.length) { var b = new this.T(this.a.length * 2); b.set(this.a); this.a = b; } this.a[this.n++] = v; return this.n - 1; };
   Grow.prototype.done = function () { return this.a.subarray(0, this.n); };
 
+  function quatMat(x, y, z, w) {
+    return [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w),
+      2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w),
+      2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)];
+  }
   /* ------------------------------------------------------------------ fragments */
-  // Returns compact arrays: per fragment geom record, node (walk index), transform index, material index.
+    var X = { t: new Grow(Float64Array, 1 << 16), m: new Grow(Float32Array, 1 << 17), n: 0 };
   function parseFragments(buf) {
     var r = new Reader(buf), dv = r.dv;
     var kindOf = new Grow(Int32Array, 1 << 16), idxOf = new Grow(Int32Array, 1 << 16);  // by object id - 100
     var nextId = 100;
-    var X = { t: new Grow(Float64Array, 1 << 16), q: new Grow(Float32Array, 1 << 16), s: new Grow(Float32Array, 1 << 14), n: 0 };
+    var X = { t: new Grow(Float64Array, 1 << 16), m: new Grow(Float32Array, 1 << 17), n: 0 };
     var G = { geom: new Grow(Int32Array), box: new Grow(Float32Array), n: 0 };
     var mats = [], apps = [];
     var F = { geo: new Grow(Int32Array, 1 << 16), node: new Grow(Int32Array, 1 << 16), xf: new Grow(Int32Array, 1 << 16), app: new Grow(Int32Array, 1 << 16) };
@@ -436,14 +441,24 @@ var NWD = (function () {
           F.xf.a[fi] = xf ? xf.index : -1; F.app.a[fi] = ap ? ap.index : -1; F.geo.a[fi] = ge ? ge.index : -1;
           return { kind: K_FRAG, index: fi };
         }
-        case 14: case 15: case 16: {
-          var xi = X.n++; X.t.push(r.f64()); X.t.push(r.f64()); X.t.push(r.f64());
-          if (cls === 14) { X.q.push(0); X.q.push(0); X.q.push(0); X.q.push(1); X.s.push(1); }
-          else { X.q.push(r.f64()); X.q.push(r.f64()); X.q.push(r.f64()); X.q.push(r.f64()); X.s.push(cls === 16 ? r.f64() : 1); }
+        case 14: case 15: case 16: case 17: {
+          // 14 translation; 15 translation + rotation; 16 + uniform scale; 17 3x3 matrix (f32 rows of 4) + translation.
+          // Stored as a row-major 3x3 matrix (rotation x scale) plus translation.
+          var xi = X.n++, m;
+          if (cls === 17) {
+            m = []; for (var rr = 0; rr < 3; rr++) for (var cc = 0; cc < 4; cc++) { var fv = r.f32(); if (cc < 3) m.push(fv); }
+            r.f32();
+            X.t.push(r.f64()); X.t.push(r.f64()); X.t.push(r.f64());
+          } else {
+            X.t.push(r.f64()); X.t.push(r.f64()); X.t.push(r.f64());
+            if (cls === 14) m = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+            else { var qx = r.f64(), qy = r.f64(), qz = r.f64(), qw = r.f64(), sc = cls === 16 ? r.f64() : 1; m = quatMat(qx, qy, qz, qw).map(function (v) { return v * sc; }); }
+          }
+          for (var mk = 0; mk < 9; mk++) X.m.push(m[mk]);
           reg(id, K_XF, xi); return { kind: K_XF, index: xi };
         }
         case 55: {
-          var flags = r.u32(), m = ptr(); if (flags & 0x30) ptr();
+          var flags = r.u32(), m = ptr(); if (flags & 0x20) ptr(); if (flags & 0x08) r.u32();  // 0x20: material asset, 0x08: texture/mapping id
           var ai = apps.length; apps.push({ flags: flags, mat: m ? m.index : -1 }); reg(id, K_APP, ai); return { kind: K_APP, index: ai };
         }
         case 54: {
@@ -457,7 +472,7 @@ var NWD = (function () {
         }
         case 185: {
           r.skipStr(); r.skipStr(); var nf = r.u32();
-          for (var k3 = 0; k3 < nf; k3++) { r.skipStr(); var emb = r.u32(); if (emb) { r.skipStr(); r.skipStr(); var len = r.u64(); r.p = (r.p + len + 3) & ~3; } else r.u32(); }
+          for (var k3 = 0; k3 < nf; k3++) { r.skipStr(); var emb = r.u32(); if (emb) { r.skipStr(); r.skipStr(); var len = r.u64(); r.p = (r.p + len + 3) & ~3; } else r.skipStr(); }
           reg(id, K_OTHER, -1); return { kind: K_OTHER, index: -1 };
         }
         default: throw new Error('fragments: unknown class ' + cls + ' at ' + r.p);
@@ -473,7 +488,7 @@ var NWD = (function () {
       var a = F.app.a[i]; mat[i] = a >= 0 ? apps[a].mat : -1;
     }
     return { count: nF, geom: geom, node: node, xf: xfi, mat: mat, gbox: gbox,
-      xfT: X.t.done(), xfQ: X.q.done(), xfS: X.s.done(), boxes: G.box.done(), materials: mats };
+      xfT: X.t.done(), xfM: X.m.done(), boxes: G.box.done(), materials: mats };
   }
 
   /* ------------------------------------------------------------------ logical hierarchy (model tree + properties) */
@@ -570,15 +585,18 @@ var NWD = (function () {
         case 200: { v = K_OTHER; reg(id, v); attrHead(); ptr(); return v; }
         case 185: {
           v = K_OTHER; reg(id, v); r.skipStr(); r.skipStr(); var nf = r.u32();
-          for (var k8 = 0; k8 < nf; k8++) { r.skipStr(); var emb = r.u32(); if (emb) { r.skipStr(); r.skipStr(); var len = r.u64(); r.p = (r.p + len + 3) & ~3; } else r.u32(); }
+          for (var k8 = 0; k8 < nf; k8++) { r.skipStr(); var emb = r.u32(); if (emb) { r.skipStr(); r.skipStr(); var len = r.u64(); r.p = (r.p + len + 3) & ~3; } else r.skipStr(); }
           return v;
         }
-        case 28: { v = K_OTHER; reg(id, v); r.u32(); ptr(); for (var k9 = 0; k9 < 7; k9++) r.u32(); for (k9 = 0; k9 < 13; k9++) r.f64(); return v; }
+        case 27: case 28: case 29: { v = K_OTHER; reg(id, v); r.u32(); ptr(); for (var k9 = 0; k9 < 7; k9++) r.u32(); for (k9 = 0; k9 < ({ 27: 9, 28: 13, 29: 18 })[cls]; k9++) r.f64(); return v; }  // distant / point / spot light
         default: throw new Error('tree: unknown object class ' + cls + ' at ' + r.p);
       }
     }
     var nParts = r.u32(); for (var i = 0; i < nParts; i++) r.u32();
-    var root = ptr();
+    // Root object: [id 100][child count] (no class word), then its children.
+    var rootId = r.u32(); if (rootId !== nextId) throw new Error('tree: unexpected root ' + rootId);
+    nextId++; r.u32();
+    var root = nodeBody(rootId, 15, false);
     var nodes = { name: N.name.done(), pair: N.pair.done(), flags: N.flags.done(), cls: N.cls.done(), attrStart: N.attrStart.done(), attrCount: N.attrCount.done(), childStart: N.childStart.done(), childCount: N.childCount.done(), count: N.name.n };
     // DFS walk with shared subtrees expanded: path index -> node, parent path, subtree end
     var wNode = new Grow(Int32Array, nodes.count + 1024), wParent = new Grow(Int32Array, nodes.count + 1024), wEnd = new Grow(Int32Array, nodes.count + 1024);

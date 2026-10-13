@@ -1,12 +1,12 @@
+import { fileURLToPath } from 'url';
 // Development server: serves the app folder and (with Range support) a few local model files for testing.
 //   node tools/devserver.mjs 8770
 import http from 'http'; import fs from 'fs'; import path from 'path';
-const root = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.argv[2] || 8770);
-const MODELS = {
-  // name in the URL -> model file on this computer, e.g. 'sample.nwd': 'C:/Models/Sample.nwd'
-  'sample.nwd': process.env.NWD_SAMPLE || 'C:/Models/Sample.nwd',
-};
+// Model files for testing: tools/models.local.json  { "name.nwd": "C:/path/to/Model.nwd" }  (kept out of git)
+const modelsFile = path.join(root, 'tools', 'models.local.json');
+const MODELS = fs.existsSync(modelsFile) ? JSON.parse(fs.readFileSync(modelsFile, 'utf8')) : {};
 const types = { '.html': 'text/html', '.json': 'application/json', '.js': 'text/javascript', '.png': 'image/png', '.css': 'text/css' };
 http.createServer((q, s) => {
   const u = decodeURIComponent(q.url.split('?')[0]);

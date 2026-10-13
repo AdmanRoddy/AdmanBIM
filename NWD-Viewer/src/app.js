@@ -222,6 +222,7 @@ async function openFile(file) {
     $('fileLabel').textContent = info.name + ' · ' + info.fragments.toLocaleString() + ' objects';
     document.title = info.name + ' — Adman Model Viewer';
     $('loader').classList.add('hidden');
+    if (info.treeError) { console.warn('tree:', info.treeError); toast('Opened with geometry only — this model tree uses a layout the viewer does not read yet, so the Selection Tree and Properties are limited.', 9000); }
     ['tools', 'status', 'cube'].forEach(id => $(id).classList.toggle('hidden', id === 'status' ? !store.get('stats', false) : false));
     setupTree(); renderViews(); selectPaths([]);
     const v0 = firstView(info.views, /^(3d main|home|3d view|3d)/i) || firstView(info.views, /3d/i);

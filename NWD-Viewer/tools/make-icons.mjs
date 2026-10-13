@@ -1,6 +1,7 @@
+import { fileURLToPath } from 'url';
 // Draws icon-192.png and icon-512.png (navy tile, red stripe, white isometric cube). node tools/make-icons.mjs
 import fs from 'fs'; import zlib from 'zlib'; import path from 'path';
-const out = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..');
+const out = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function png(w, h, rgba) {
   const crcT = new Int32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c; });
