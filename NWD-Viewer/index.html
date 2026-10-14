@@ -2248,13 +2248,27 @@ function orbit(dx, dy) {
   const Z = new THREE.Vector3(0, 0, 1), angX = -dx * 0.006, angY = -dy * 0.006;
   const off = camera.position.clone().sub(nav.pivot);
   tmpQ.setFromAxisAngle(Z, angX); off.applyQuaternion(tmpQ); camera.quaternion.premultiply(tmpQ);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
   const fwd = camera.getWorldDirection(new THREE.Vector3());
+  // Turning about the horizontal right axis by +a raises the view by a, so the limit is applied to the
+  // pitch the camera actually ends up at. (Clamping one way and turning the other let the view stick at
+  // the top in one direction and roll over the top, upside down, in the other.)
+  const right = new THREE.Vector3().crossVectors(fwd, Z);
+  if (right.lengthSq() < 1e-8) right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  right.normalize();
   const pitch = Math.asin(THREE.MathUtils.clamp(fwd.z, -1, 1));
-  const np = THREE.MathUtils.clamp(pitch + angY, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
-  tmpQ.setFromAxisAngle(right, -(np - pitch)); off.applyQuaternion(tmpQ); camera.quaternion.premultiply(tmpQ);
+  const np = THREE.MathUtils.clamp(pitch - angY, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01);
+  tmpQ.setFromAxisAngle(right, np - pitch); off.applyQuaternion(tmpQ); camera.quaternion.premultiply(tmpQ);
   camera.position.copy(nav.pivot).add(off);
+  levelCamera();
   cameraChanged();
+}
+// Keep the camera's up on the model's up (Z), like Navisworks orbit, so a rolled or upside down view
+// (from a saved viewpoint or an earlier flip) rights itself on the next drag.
+function levelCamera() {
+  const fwd = camera.getWorldDirection(new THREE.Vector3());
+  if (Math.abs(fwd.z) > 0.995) return;   // looking straight up or down: heading comes from the current up
+  const m = new THREE.Matrix4().lookAt(camera.position, camera.position.clone().add(fwd), new THREE.Vector3(0, 0, 1));
+  camera.quaternion.setFromRotationMatrix(m);
 }
 function look(dx, dy) {
   tmpQ.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -dx * 0.004); camera.quaternion.premultiply(tmpQ);
