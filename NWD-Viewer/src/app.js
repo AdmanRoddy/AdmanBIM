@@ -33,6 +33,7 @@ worker.onmessage = e => {
     case 'cell': addCell(m); break;
     case 'drop': dropCell(m.cell); break;
     case 'loading': loadingCells = m.pending; updateStatus(); if (m.limited !== undefined) detailLimited(m.limited); $('busy').classList.toggle('hidden', !m.pending); break;
+    case 'propsReady': if (propPath !== null) showProps(propPath); break;
     case 'error': console.error(m.message); toast('Problem: ' + String(m.message).split('\n')[0], 5000); break;
   }
 };
@@ -736,11 +737,15 @@ async function revealInTree() {
 
 /* --------------------------------------------------- properties */
 let propTab = 0;
+let propPath = null, propTabName = null;   // item and tab shown in the Properties panel
 async function showProps(path) {
+  propPath = path === undefined ? null : path;
   if (path === null || path === undefined) { $('propTitle').textContent = 'Properties'; $('propType').textContent = ''; $('propTabs').innerHTML = ''; $('propBody').innerHTML = '<div class="muted small pad">Tap an item in the model or the tree to see its properties.</div>'; return; }
   const r = await call('props', { path });
+  if (!r || propPath !== path) return;   // a newer selection is already on its way
   $('propTitle').textContent = r.title; $('propType').textContent = r.tabs[0] && r.tabs[0].rows[1] ? r.tabs[0].rows[1][1] : '';
   if (propTab >= r.tabs.length) propTab = 0;
+  const keep = r.tabs.findIndex(t => t.name === propTabName); if (keep >= 0) propTab = keep;
   const draw = () => {
     $('propTabs').innerHTML = r.tabs.map((t, i) => `<button data-i="${i}" class="${i === propTab ? 'on' : ''}">${esc(t.name)}</button>`).join('');
     const rows = (r.tabs[propTab] || { rows: [] }).rows;
@@ -753,7 +758,7 @@ async function showProps(path) {
     }).join('') + '</table>';
   };
   draw();
-  $('propTabs').onclick = e => { const i = e.target.dataset.i; if (i !== undefined) { propTab = +i; draw(); } };
+  $('propTabs').onclick = e => { const i = e.target.dataset.i; if (i !== undefined) { propTab = +i; propTabName = r.tabs[propTab].name; draw(); } };
 }
 
 /* --------------------------------------------------- viewpoints */

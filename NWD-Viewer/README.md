@@ -63,7 +63,11 @@ Ctrl-click adds to the selection. Keys: **W A S D / Q E** walk, **H** hide, **I*
 - **Viewpoints** , the file's saved viewpoints and folders. Going to a viewpoint restores its camera and its
   section plane. "Save current view" keeps extra views on this device.
 - **Find** , search object names and types, e.g. *Panel LP-1*, *Cable Tray*, *Doors*.
-- **Properties** , Navisworks-style tabs: Item, Element, Revit Type, Phase, Material, Hyperlinks, Transform…
+- **Properties** , Navisworks-style tabs: Item, Element, Custom, Type, Type Custom, Element ID, Phase, Material,
+  Hyperlinks, Transform… Element and Custom hold the Revit and eVolve parameters (conduit size, trade size,
+  length, part description). Selecting a fitting or a piece of geometry shows the properties of the object it
+  belongs to. In large NWD files these properties load in the background a few seconds after the model
+  appears; until then the Item tab says they are still loading.
 
 ## Settings → Detail / performance
 
@@ -91,7 +95,7 @@ and orthographic viewpoints (shown with a matching perspective camera).
 |---|---|
 | `index.html` | The whole app (built from `src/`) |
 | `manifest.json`, `sw.js`, `icon-*.png` | Home-screen app + offline support |
-| `src/core.js` | Navisworks file reader (container, geometry, objects, model tree, viewpoints) |
+| `src/core.js` | Navisworks file reader (container, geometry, objects, model tree, element properties, viewpoints) |
 | `src/worker.js` | Background engine: spatial index, streaming, model-tree queries |
 | `src/app.js`, `src/style.css`, `src/index.template.html` | Viewer, controls and panels |
 | `build.mjs` | `node build.mjs` , rebuilds `index.html` after editing `src/` |
@@ -100,4 +104,5 @@ and orthographic viewpoints (shown with a matching perspective camera).
 Development: list a few local models in `tools/models.local.json` (kept out of git), e.g.
 `{ "sample.nwd": "C:/Models/Sample.nwd" }`, run `node tools/devserver.mjs 8770` and open
 `http://localhost:8770/?url=/models/sample.nwd`. `node tools/test-core.cjs <file.nwd>` checks the file reader from the
-command line, and `node tools/batch.cjs list.txt` runs it over a list of files.
+command line, `node tools/batch.cjs list.txt` runs it over a list of files, and `node tools/propcheck.cjs <file.nwd>`
+checks that element properties line up with the model tree.

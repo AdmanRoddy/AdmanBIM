@@ -67,6 +67,7 @@ HANDLERS.open = async function (m) {
   try { st.H = NWD.parseHierarchy(hbuf); st.treeError = null; }
   catch (err) { st.H = stubHierarchy(st.F); st.treeError = String(err.message || err); }
   hbuf = null;
+  st.PP = null; st.propsState = 'none';
   S = st;
 
   progress('Indexing objects', 0.75);
@@ -87,6 +88,7 @@ HANDLERS.open = async function (m) {
   // default materials: per fragment colour (rgb + alpha), from fragment appearance or tree material
   var colors = fragmentColors();
   progress('Ready', 1);
+  if (!st.treeError && f.section('LcOaPartitionProps')) { st.propsState = 'reading'; setTimeout(function () { scanElementProps(st); }, 0); }
   var o = S.origin;
   return {
     name: st.name, size: st.size, fragments: S.F.count, treeError: st.treeError, records: S.G.nRec, nodes: S.H.nodes.count,
@@ -508,8 +510,33 @@ HANDLERS.children = function (m) {
 };
 HANDLERS.chainInfo = function (m) { return m.chain.map(nodeInfo); };
 
+// Element properties (Revit Element, Custom, Type parameters...) live in their own section in NWD files.
+// After the model opens, its chunks are scanned in the background, a chunk at a time with pauses so
+// camera and geometry requests keep flowing. Selecting an item then reads just that item's chunk.
+async function scanElementProps(st) {
+  try {
+    var P = await NWD.openPartitionProps(st.f); if (!P || S !== st) return;
+    var scan = await NWD.scanPartitionProps(P, function () { if (S !== st) throw new Error('closed'); return new Promise(function (r) { setTimeout(r, 0); }); });
+    var link = NWD.linkPartitionProps(scan.labels, st.H);
+    scan.labels = null;
+    st.PP = { P: P, scan: scan, of: link.of, linked: link.linked, cache: new Map() };
+    st.propsState = 'ready';
+    post('propsReady', { linked: link.linked, items: scan.count });
+  } catch (err) {
+    if (S === st) { st.propsState = 'failed'; st.propsError = String(err.message || err); post('propsReady', { linked: 0, error: st.propsError }); }
+  }
+}
+// decoded chunks of the property section, a few kept for repeat taps
+function propsChunk(PP, c) {
+  var hit = PP.cache.get(c); if (hit) { PP.cache.delete(c); PP.cache.set(c, hit); return hit; }
+  var pr = NWD.readPropsChunk(PP.P, c);
+  PP.cache.set(c, pr); while (PP.cache.size > 3) PP.cache.delete(PP.cache.keys().next().value);
+  pr.catch(function () { PP.cache.delete(c); });
+  return pr;
+}
+
 // Properties panel: Item tab + every property category attached to the node (Navisworks-style tabs)
-HANDLERS.props = function (m) {
+HANDLERS.props = async function (m) {
   var p = m.path, H = S.H, n = H.walk.node[p], N = H.nodes, tabs = [];
   var item = [['Name', nodeName(n)], ['Type', pairUser(N.pair[n]) || typeName(nodeType(n))], ['Internal Type', pairInternal(N.pair[n])],
     ['Hidden', N.flags[n] & 0x1000000 ? 'Yes' : 'No']];
@@ -544,6 +571,34 @@ HANDLERS.props = function (m) {
   }
   addAttrs(n);
   if (nodeType(n) === T_GEOMETRY && H.walk.parent[p] >= 0) addAttrs(H.walk.node[H.walk.parent[p]]);
+  // element properties: this node, or the nearest element above it (fittings nest a few levels deep)
+  var st = S, PP = st.PP;
+  if (st.propsState === 'reading') item.push(['Element Properties', 'Still loading, select again in a moment']);
+  if (PP) {
+    var g = -1;
+    for (var q2 = p; q2 >= 0 && g < 0; q2 = H.walk.parent[q2]) {
+      var nq = H.walk.node[q2], tq = nodeType(nq); if (tq === T_FILE || tq === T_LAYER || tq === T_ROOT) break;
+      if (PP.of[nq] >= 0) g = PP.of[nq];
+    }
+    var G = null;
+    if (g >= 0) { try { G = await NWD.readPartitionItem(PP.P, PP.scan, g, function (c) { return propsChunk(PP, c); }); } catch (err) { G = null; } }
+    if (S !== st) return null;
+    if (G) {
+      var have = new Set(tabs.map(function (t) { return t.name; })), elementTabs = [];
+      for (var t2 = 0; t2 < G.tabs.length; t2++) {
+        var T = G.tabs[t2];
+        if (T.links) { if (T.links.length) elementTabs.push({ name: T.name, rows: T.links.map(function (x) { return [x[0] || 'Link', { url: x[1] }]; }) }); continue; }
+        if (have.has(T.name)) continue; have.add(T.name);
+        elementTabs.push({ name: T.name, rows: T.rows.map(function (it) { return [it[0] || '(property)', fmtValue(it[1], it[2])]; }) });
+      }
+      if (G.id !== null) elementTabs.push({ name: 'Element ID', rows: [['Value', String(G.id)]] });
+      tabs = tabs.concat(elementTabs);
+    }
+  }
+  // the tabs people look at most come first, right after Item (the rest keep their file order)
+  var first = ['Item', 'Element', 'Custom', 'Type', 'Revit Type', 'Type Custom', 'Element ID'];
+  var rank = function (t) { var i = first.indexOf(t.name); return i < 0 ? first.length : i; };
+  tabs = tabs.map(function (t, i) { return [rank(t), i, t]; }).sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; }).map(function (x) { return x[2]; });
   return { title: nodeName(n), type: nodeType(n), tabs: tabs };
 };
 function typeName(t) { return ['Root', 'File', 'Layer', 'Group', 'Instance', 'Composite Object', 'Geometry'][t] || 'Item'; }
@@ -569,6 +624,7 @@ function fmtValue(type, v) {
   if (v.ang !== undefined) return (v.ang * 180 / Math.PI).toFixed(2) + '°';
   if (v.area !== undefined) return v.area.toFixed(2) + ' ft²';
   if (v.vol !== undefined) return v.vol.toFixed(2) + ' ft³';
+  if (v.time !== undefined) { var d = new Date(v.time * 1000); return isNaN(d) ? String(v.time) : d.toLocaleString(); }
   if (v.pair !== undefined) return pairUser(v.pair);
   return String(v);
 }

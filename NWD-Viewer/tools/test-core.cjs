@@ -25,7 +25,7 @@ const ms = a => Number(t() - a) / 1e6 | 0;
   console.log(f.header, f.sections.length, 'sections');
   let a = t();
   const fr = NWD.parseFragments(await NWD.readSection(f, f.section('LcOpNwdFragments')));
-  console.log('fragments', fr.count, 'materials', fr.materials.length, 'transforms', fr.xfS.length, ms(a) + 'ms');
+  console.log('fragments', fr.count, 'materials', fr.materials.length, 'transforms', fr.xfT.length / 3, ms(a) + 'ms');
   a = t();
   const h = NWD.parseHierarchy(await NWD.readSection(f, f.section('LcOpNwdLogicalHierarchy')));
   console.log('tree nodes', h.nodes.count, 'walk', h.walk.count, 'strings', h.strings.length, 'props', h.props.length, ms(a) + 'ms');

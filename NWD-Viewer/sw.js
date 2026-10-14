@@ -1,7 +1,7 @@
 /* Keeps the viewer working on job sites without signal.
    App files: fresh copy when online, cached copy when not.
    three.js and fonts from the CDN: cached the first time, then served from the cache. */
-const CACHE = "admanworks-v2";
+const CACHE = "admanworks-v3";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./adman-prefab-logo.webp"];
 const CDN = ["https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js"];
 

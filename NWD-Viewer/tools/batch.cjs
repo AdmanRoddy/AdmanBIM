@@ -7,9 +7,10 @@ function src(p){const fd=fs.openSync(p,'r'),size=fs.fstatSync(fd).size;return{si
    stage='fragments'; const F=NWD.parseFragments(await NWD.readSection(f,f.section('LcOpNwdFragments')));
    stage='tree'; const H=NWD.parseHierarchy(await NWD.readSection(f,f.section('LcOpNwdLogicalHierarchy')));
    let bad=0; for(let i=0;i<F.count;i++){ const n=H.walk.node[F.node[i]]; if(n===undefined||H.nodes.cls[n]!==22) bad++; }
+   stage='props'; let pinfo='-'; const PP=await NWD.openPartitionProps(f); if(PP){ const sc=await NWD.scanPartitionProps(PP); const L=NWD.linkPartitionProps(sc.labels,H); let chk=''; const linkedItems=[]; for(let q=0;q<H.nodes.count;q++) if(L.of[q]>=0) linkedItems.push(L.of[q]); if(linkedItems.length){ const gi=linkedItems[Math.floor(linkedItems.length/2)]; const it=await NWD.readPartitionItem(PP,sc,gi); chk=' item'+gi+':'+it.tabs.length+'tabs'; } pinfo='chunks '+PP.n+' items '+sc.count+' linked '+L.linked+'/'+L.nodes+' ('+(100*L.linked/Math.max(1,L.nodes)).toFixed(1)+'%)'+chk+(sc.error?' skipped '+sc.skipped+' first '+sc.error.slice(0,50):''); }
    stage='views'; let vinfo='-'; const sv=f.section('LcOpSavedViewsElement'); if(sv){ const vb=await NWD.readSection(f,sv); try{ NWD.parseViewTree(vb); vinfo='tree'; }catch(e){ vinfo='flat:'+NWD.parseSavedViews(vb).length; } }
    stage='geometry'; const G=await NWD.openGeometry(f); const pick=[]; for(let i=0;i<150;i++) pick.push(Math.floor(Math.random()*G.nRec)); const recs=await NWD.fetchRecords(f,G,pick,new Map()); let ge=0; for(const b of recs.values()){ try{ const r=NWD.parseRecord(b); if(r.kind===94) NWD.meshTriangles(r); }catch(e){ ge++; } }
-   console.log('OK  ', path.basename(p), `frags ${F.count} nodes ${H.nodes.count} badLink ${bad} views ${vinfo} geomErr ${ge}/${recs.size}`, ((Date.now()-t0)/1000).toFixed(1)+'s');
+   console.log('OK  ', path.basename(p), `frags ${F.count} nodes ${H.nodes.count} badLink ${bad} props ${pinfo} views ${vinfo} geomErr ${ge}/${recs.size}`, ((Date.now()-t0)/1000).toFixed(1)+'s');
   } catch(e){ console.log('FAIL', path.basename(p), stage+':', String(e.message).slice(0,160)); }
   finally { if(s) fs.closeSync(s.fd); } }
 })();

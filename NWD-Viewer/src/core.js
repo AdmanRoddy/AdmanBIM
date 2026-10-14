@@ -502,7 +502,7 @@ var NWD = (function () {
     var objKind = new Grow(Int32Array, 1 << 16);   // (index << 4) | kind, by id - 100
     var K_NODE = 1, K_PAIR = 2, K_PROPS = 3, K_MAT = 4, K_LINK = 5, K_XF = 6, K_OTHER = 7;
     var N = { name: new Grow(Int32Array, 1 << 16), pair: new Grow(Int32Array, 1 << 16), flags: new Grow(Uint32Array, 1 << 16), cls: new Grow(Uint8Array, 1 << 16),
-      attrStart: new Grow(Int32Array, 1 << 16), attrCount: new Grow(Uint16Array, 1 << 16), childStart: new Grow(Int32Array, 1 << 16), childCount: new Grow(Int32Array, 1 << 16) };
+      attrStart: new Grow(Int32Array, 1 << 16), attrCount: new Grow(Uint16Array, 1 << 16), x: new Grow(Uint32Array, 1 << 16), childStart: new Grow(Int32Array, 1 << 16), childCount: new Grow(Int32Array, 1 << 16) };
     var attrList = new Grow(Int32Array, 1 << 16), childList = new Grow(Int32Array, 1 << 16);
     var pairs = [], props = [], mats = [], links = [], xfs = [];
     var nextId = 100;
@@ -522,7 +522,7 @@ var NWD = (function () {
         case 2: return r.i32();
         case 3: return !!r.u32();
         case 4: return r.str();
-        case 5: return r.f32();
+        case 5: return { time: r.u64() };   // date and time, seconds since 1970
         case 6: return { len: r.f64() };
         case 7: return { ang: r.f64() };
         case 8: { var o = ptr(); return (o & 15) === K_PAIR ? { pair: o >> 4 } : null; }
@@ -532,13 +532,13 @@ var NWD = (function () {
       }
     }
     function nodeBody(id, cls, pre) {
-      var ni = N.name.push(-1); N.pair.push(-1); N.flags.push(0); N.cls.push(cls); N.attrStart.push(0); N.attrCount.push(0); N.childStart.push(0); N.childCount.push(0);
+      var ni = N.name.push(-1); N.x.push(0); N.pair.push(-1); N.flags.push(0); N.cls.push(cls); N.attrStart.push(0); N.attrCount.push(0); N.childStart.push(0); N.childCount.push(0);
       var kv = (ni << 4) | K_NODE; reg(id, kv);
       if (pre) r.u32();
       if (cls !== 15 && cls !== 2) {
         N.name.a[ni] = sid(r.str());
         var pr = ptr(); N.pair.a[ni] = (pr & 15) === K_PAIR ? pr >> 4 : -1;
-        N.flags.a[ni] = r.u32(); r.u32();
+        N.flags.a[ni] = r.u32(); N.x.a[ni] = r.u32();
         var na = r.u32(), at = []; for (var k = 0; k < na; k++) { var a = ptr(); if (a) at.push(a); }
         N.attrStart.a[ni] = attrList.n; N.attrCount.a[ni] = at.length; for (k = 0; k < at.length; k++) attrList.push(at[k]);
         if (cls !== 22) {
@@ -598,7 +598,7 @@ var NWD = (function () {
     var rootId = r.u32(); if (rootId !== nextId) throw new Error('tree: unexpected root ' + rootId);
     nextId++; r.u32();
     var root = nodeBody(rootId, 15, false);
-    var nodes = { name: N.name.done(), pair: N.pair.done(), flags: N.flags.done(), cls: N.cls.done(), attrStart: N.attrStart.done(), attrCount: N.attrCount.done(), childStart: N.childStart.done(), childCount: N.childCount.done(), count: N.name.n };
+    var nodes = { x: N.x.done(), name: N.name.done(), pair: N.pair.done(), flags: N.flags.done(), cls: N.cls.done(), attrStart: N.attrStart.done(), attrCount: N.attrCount.done(), childStart: N.childStart.done(), childCount: N.childCount.done(), count: N.name.n };
     // DFS walk with shared subtrees expanded: path index -> node, parent path, subtree end
     var wNode = new Grow(Int32Array, nodes.count + 1024), wParent = new Grow(Int32Array, nodes.count + 1024), wEnd = new Grow(Int32Array, nodes.count + 1024);
     var cl = childList.done();
@@ -618,6 +618,216 @@ var NWD = (function () {
     return { strings: strings, pairs: pairs, props: props, materials: mats, links: links, xfs: xfs, nodes: nodes, attrList: attrList.done(),
       walk: { node: wNode.done(), parent: wParent.done(), end: wEnd.done(), count: wNode.n },
       K: { NODE: K_NODE, PAIR: K_PAIR, PROPS: K_PROPS, MAT: K_MAT, LINK: K_LINK, XF: K_XF } };
+  }
+
+  /* ------------------------------------------------------------------ element properties (LcOaPartitionProps) */
+  // NWD files keep most per item properties here instead of in the tree: Element, Custom, Type and so on.
+  // The section is a chunked stream; every chunk is its own archive (object ids restart at 100) holding a
+  // flat run of property tabs (86) and hyperlinks (79) in tree walk order. The index member at the end
+  // lists the chunk sizes, so any chunk can be read on its own. Items are not counted, so they are split
+  // by rule (groupStep):
+  //   * an id entry (66 numeric, 70 text) with flags 0x1000000 closes a Revit element
+  //   * an "Element" tab starts a new item when the current one already has one (stair runs, landings...)
+  //   * a "Project" tab starts a new item (a file's own tabs)
+  //   * tabs after a close (Family, Type...) belong to the next item
+  // Opening a model only scans the chunks for a short label per item (scanPartitionProps); the tabs of
+  // one item are read again when it is selected (readPartitionItem). Big federated models carry more
+  // than a gigabyte of these, far too much to hold on an iPad.
+  function readPropsArchive(buf, visit) {
+    var r = new Reader(buf), dv = r.dv, objs = new Map(), nextId = 100, error = null, skipped = 0;
+    function ptr() {
+      var at = r.p, v = r.u32();
+      if (v === 0) return null;
+      if (v === 1) return objs.get(r.u32()) || null;
+      if (v === 2) { r.u32(); return null; }
+      if (v !== nextId) throw new Error('props: expected object ' + nextId + ', got ' + v + ' at ' + at);
+      nextId++; var o = { cls: r.u32() }; objs.set(v, o); read(o); return o;
+    }
+    function value(t) {
+      switch (t) {
+        case 0: return null; case 1: return r.f64(); case 2: return r.i32(); case 3: return !!r.u32(); case 4: return r.str();
+        case 5: return { time: r.u64() };   // date and time, seconds since 1970
+        case 6: return { len: r.f64() }; case 7: return { ang: r.f64() }; case 10: return { area: r.f64() }; case 11: return { vol: r.f64() };
+        case 8: { var o = ptr(); return o && o.user !== undefined ? o.user : null; }
+        default: throw new Error('props: unknown property type ' + t + ' at ' + r.p);
+      }
+    }
+    function read(o) {
+      switch (o.cls) {
+        case 52: o.user = r.str(); o.internal = r.str(); break;
+        case 86: { var nm = r.str(), cat = ptr(); r.u32(); var n = r.u32(), rows = [];
+          for (var k = 0; k < n; k++) { var key = ptr(), t = r.u32(); rows.push([key ? key.user : '', t, value(t)]); }
+          o.name = nm || (cat && cat.user) || 'Properties'; o.rows = rows; break; }
+        case 79: { var ln = r.str(); ptr(); r.u32(); var nl = r.u32(), links = [];
+          for (var j = 0; j < nl; j++) { var a = r.str(), u = r.str(); ptr(); r.u32(); links.push([a, u]); }
+          o.name = ln || 'Hyperlinks'; o.links = links; break; }
+        case 66: o.name = r.str(); o.key = ptr(); o.flags = r.u32(); o.val = r.u64(); break;   // numeric id (Revit Element ID)
+        case 70: o.val = r.str(); o.key = ptr(); o.flags = r.u32(); break;                       // text id (IFC GUID)
+        case 76: o.name = r.str(); o.key = ptr(); o.flags = r.u32(); o.text = r.str(); break;    // text reference key
+        default: throw new Error('props: unknown object class ' + o.cls + ' at ' + r.p);
+      }
+    }
+    // After an object this reader does not know, skip ahead to the next object it does know.
+    var KNOWN = { 52: 1, 66: 1, 70: 1, 76: 1, 79: 1, 86: 1 };
+    function resync(from) {
+      for (var q = (from + 3) & ~3; q + 8 <= buf.length; q += 4) {
+        var id = dv.getUint32(q, true);
+        if (KNOWN[dv.getUint32(q + 4, true)] && id > nextId && id < nextId + 64) { nextId = id; r.p = q; return true; }
+      }
+      return false;
+    }
+    while (r.p + 8 <= buf.length) {
+      var at = r.p;
+      try {
+        if (dv.getUint32(r.p, true) === 0) { r.p += 4; continue; }
+        var o = ptr(); if (o && visit(o)) break;
+      } catch (e) {
+        skipped++; if (!error) error = String(e.message || e);
+        if (!resync(Math.max(at + 4, r.p))) break;
+      }
+    }
+    return { error: error, skipped: skipped };
+  }
+
+  // Label used to pair items with tree nodes: Category and Type. System families such as conduit carry
+  // no Family tab, so the family is left out (walk order keeps neighbours apart).
+  function propsKey(s) {
+    var p = String(s).split(':').map(function (x) { return x.trim(); }).filter(Boolean);
+    return p.length >= 3 ? p[0] + ': ' + p[p.length - 1] : p.join(': ');
+  }
+
+  // Item splitting rules. s = { g: item number, open: item has tabs, hasEl: item has an Element tab }
+  function groupStep(s, o, onTab, onClose) {
+    function close(id) { onClose(id); s.g++; s.open = false; s.hasEl = false; }
+    if (o.cls === 86 || o.cls === 79) {
+      if (o.name === 'Element') { if (s.hasEl) close(null); s.hasEl = true; }
+      else if (o.name === 'Project' && s.open) close(null);
+      s.open = true; onTab(o);
+    } else if ((o.cls === 66 || o.cls === 70) && o.flags === 0x1000000) close(o.val);
+  }
+
+  async function openPartitionProps(f) {
+    var sec = f.section('LcOaPartitionProps'); if (!sec) return null;
+    var P = { f: f, sec: sec, n: 1, off: null, whole: null };
+    if (sec.a === 4 && sec.b) {
+      try {
+        var ix = inflate(await f.src.read(sec.offset + sec.length - sec.b, sec.b), 0).data, n = u32(ix, 0);
+        var off = new Float64Array(n + 1); off[0] = sec.offset + 4;
+        for (var i = 0; i < n; i++) off[i + 1] = off[i] + u32(ix, 4 + 4 * i);
+        if (n > 0 && 4 + 4 * n <= ix.length && off[n] <= sec.offset + sec.length - sec.b) { P.n = n; P.off = off; }
+      } catch (e) { /* fall back to reading the section whole */ }
+    }
+    return P;
+  }
+  async function readPropsChunk(P, c) {
+    if (!P.off) { if (!P.whole) P.whole = await readSection(P.f, P.sec); return P.whole; }
+    return inflate(await P.f.src.read(P.off[c], P.off[c + 1] - P.off[c]), 0).data;
+  }
+
+  // One pass over every chunk. Keeps, per item, a label to check it against the tree (Category and Type
+  // from its Element tab, or from its Category tab and its own type name, else the latest Type tab) and
+  // the chunk it starts in.
+  async function scanPartitionProps(P, onChunk) {
+    var norm = propsKey;
+    function row(t, key) { for (var j = 0; j < t.rows.length; j++) if (t.rows[j][0] === key) return t.rows[j][2] === null ? '' : String(t.rows[j][2]); return ''; }
+    var intern = new Map(), labels = [], starts = [], chunkState = [], error = null, skipped = 0;
+    var s = { g: 0, open: false, hasEl: false }, typ = '', own = null, el = null, cat = null, proj = false, nTabs = 0, first = -1, c = 0;
+    function onTab(t) {
+      if (first < 0) first = c;
+      if (t.rows) {
+        if (t.name === 'Element') el = norm(row(t, 'Category') + ': ' + row(t, 'Family') + ': ' + row(t, 'Type'));
+        else if (t.name === 'Category') cat = row(t, 'Name');
+        else if (t.name === 'Project' && nTabs === 0) proj = true;
+        else if (t.name === 'Type') typ = row(t, 'Name');
+        else if (t.name === 'Element Properties') own = row(t, 'Name') || null;   // the element's own type name
+      }
+      nTabs++;
+    }
+    function onClose() {
+      var lb = el || (cat !== null ? norm(cat + ': ' + (own || typ)) : '');
+      lb = lb ? lb : proj ? '\u0001file' : null;   // nothing to check against (Revit model groups...): left unlinked
+      if (lb !== null) { var v = intern.get(lb); if (v === undefined) intern.set(lb, v = lb); lb = v; }
+      labels.push(lb); starts.push(first >= 0 ? first : c);
+      el = null; own = null; cat = null; proj = false; nTabs = 0; first = -1;
+    }
+    for (c = 0; c < P.n; c++) {
+      chunkState.push({ g: s.g, open: s.open, hasEl: s.hasEl });
+      var res = readPropsArchive(await readPropsChunk(P, c), function (o) { groupStep(s, o, onTab, onClose); });
+      if (res.error && !error) error = res.error; skipped += res.skipped;
+      if (onChunk) await onChunk((c + 1) / P.n);
+    }
+    if (s.open) { onClose(); s.g++; }
+    return { labels: labels, start: Int32Array.from(starts), chunkState: chunkState, count: labels.length, error: error, skipped: skipped };
+  }
+
+  // The tabs of item gi (and its id entry), read again from its chunk.
+  async function readPartitionItem(P, scan, gi, getChunk) {
+    var c = scan.start[gi], st = scan.chunkState[c], s = { g: st.g, open: st.open, hasEl: st.hasEl }, tabs = [], id = null, done = false;
+    getChunk = getChunk || function (k) { return readPropsChunk(P, k); };
+    for (; c < P.n && !done; c++) {
+      readPropsArchive(await getChunk(c), function (o) {
+        groupStep(s, o, function (t) { if (s.g === gi) tabs.push(t); }, function (v) { if (s.g === gi) { id = v; done = true; } });
+        return done || s.g > gi;
+      });
+      if (s.g > gi) done = true;
+    }
+    return { tabs: tabs, id: id };
+  }
+
+  // Pair property items with tree nodes in walk order. Candidates are nodes with a nonzero x, files, and
+  // composite objects labelled "Category: Family: Type" (some exporters leave x at 0, so x alone is not enough).
+  // Each labelled item takes the next candidate with the same label (Category and Type must agree),
+  // so candidates that own nothing are passed over. Once a node is taken, same label nodes inside it (the
+  // instance and its inner composite) are not offered again. A long jump ahead is only trusted when the
+  // next few items carry on close behind it; when nothing fits ahead, the pairing restarts at the first
+  // free candidate with the label (source files are not always stored in tree order). Returns node -> item.
+  function linkPartitionProps(gl, H) {
+    var N = H.nodes, W = H.walk, S = H.strings, G = gl.length;
+    var norm = propsKey;
+    var order = [], opos = [], nl = [], seen = new Uint8Array(N.count);
+    for (var p = 0; p < W.count; p++) {
+      var n = W.node[p]; if (seen[n]) continue;
+      var lab = N.pair[n] >= 0 ? S[H.pairs[N.pair[n]][0]] : '';
+      var full = N.cls[n] === 53 && (N.flags[n] & 0x200000) && /: .*: /.test(lab);
+      if (N.x[n] || N.cls[n] === 32 || full) { seen[n] = 1; order.push(n); opos.push(p); nl.push(N.cls[n] === 32 ? '\u0001file' : norm(lab)); }
+    }
+    var byLabel = new Map();
+    for (var j = 0; j < order.length; j++) { var L = byLabel.get(nl[j]); if (!L) byLabel.set(nl[j], L = []); L.push(j); }
+    function firstAtOrAfter(L, j) { var lo = 0, hi = L.length; while (lo < hi) { var m = (lo + hi) >> 1; if (L[m] < j) lo = m + 1; else hi = m; } return lo; }
+    var of = new Int32Array(N.count).fill(-1), linked = 0, cur = 0, WINDOW = 50000, NEAR = 64;
+    var blockLabel = null, blockEnd = -1;   // same label nodes inside the last taken node
+    function next(i, from, bl, be) {        // candidate index for item i at or after from, or -1
+      var Lst = byLabel.get(gl[i]); if (!Lst) return -1;
+      var k = firstAtOrAfter(Lst, from);
+      while (k < Lst.length && gl[i] === bl && opos[Lst[k]] < be) k++;
+      return k < Lst.length ? Lst[k] : -1;
+    }
+    function confirmed(i, jj) {
+      var at = jj + 1, bl = gl[i], be = W.end[opos[jj]], ok = 0;
+      for (var q = i + 1; q < G && ok < 3; q++) {
+        if (gl[q] === null) continue;
+        var j2 = next(q, at, bl, be); if (j2 < 0 || j2 - at > NEAR) return false;
+        ok++; at = j2 + 1; bl = gl[q]; be = W.end[opos[j2]];
+      }
+      return true;
+    }
+    // first candidate with this label not taken yet, anywhere (source files can come in another order)
+    var free = new Map();
+    function firstFree(lb) {
+      var Lst = byLabel.get(lb); if (!Lst) return -1;
+      var k = free.get(lb) || 0; while (k < Lst.length && of[order[Lst[k]]] >= 0) k++;
+      free.set(lb, k); return k < Lst.length ? Lst[k] : -1;
+    }
+    for (var i = 0; i < G; i++) {
+      if (gl[i] === null) continue;
+      var jj = cur < order.length ? next(i, cur, blockLabel, blockEnd) : -1;
+      if (jj >= 0 && (jj - cur > WINDOW || (jj - cur > NEAR && !confirmed(i, jj)))) jj = -1;
+      if (jj < 0) { var jb = firstFree(gl[i]); if (jb >= 0 && of[order[jb]] < 0 && confirmed(i, jb)) jj = jb; }
+      if (jj < 0 || of[order[jj]] >= 0) continue;
+      of[order[jj]] = i; linked++; cur = jj + 1;
+      blockLabel = gl[i]; blockEnd = W.end[opos[jj]];
+    }
+    return { of: of, linked: linked, nodes: order.length, order: order, nodeLabels: nl };
   }
 
   /* ------------------------------------------------------------------ saved viewpoints (structured, newer files) */
@@ -701,6 +911,6 @@ var NWD = (function () {
 
   return { inflate: inflate, blobSource: blobSource, urlSource: urlSource, openFile: openFile, readSection: readSection, Reader: Reader,
     openGeometry: openGeometry, fetchRecords: fetchRecords, parseRecord: parseRecord, meshTriangles: meshTriangles, lineSegments: lineSegments,
-    parseFragments: parseFragments, parseHierarchy: parseHierarchy, parseSavedViews: parseSavedViews, parseViewTree: parseViewTree };
+    parseFragments: parseFragments, parseHierarchy: parseHierarchy, openPartitionProps: openPartitionProps, scanPartitionProps: scanPartitionProps, readPartitionItem: readPartitionItem, readPropsChunk: readPropsChunk, linkPartitionProps: linkPartitionProps, parseSavedViews: parseSavedViews, parseViewTree: parseViewTree };
 })();
 if (typeof module !== 'undefined') module.exports = NWD;
